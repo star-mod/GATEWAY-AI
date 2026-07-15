@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GATEWAY — AI Command Layer for FIFA World Cup 2026 Stadiums</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230B1F17'/%3E%3Ccircle cx='50' cy='50' r='38' fill='none' stroke='%232E9E68' stroke-width='5'/%3E%3Crect x='39' y='34' width='8' height='32' rx='2' fill='%23F5F7F2'/%3E%3Crect x='53' y='34' width='8' height='32' rx='2' fill='%23F5F7F2'/%3E%3Ccircle cx='50' cy='13' r='7.5' fill='%23F5F7F2' stroke='%23101815' stroke-width='1.4'/%3E%3Cpolygon points='50,7.8 53.6,10.4 52.2,14.6 47.8,14.6 46.4,10.4' fill='%23101815'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="pre-splash">
+
+<!-- SPLASH / ANIMATED LOGO INTRO -->
+<div id="splash">
+  <svg class="splash-logo" viewBox="0 0 100 100" role="img" aria-label="GATEWAY AI logo">
+    <circle class="splash-ring" cx="50" cy="50" r="40"/>
+    <circle class="splash-arc" cx="50" cy="50" r="40" pathLength="100" transform="rotate(-90 50 50)"/>
+    <g class="splash-gate">
+      <rect x="40" y="36" width="7" height="28" rx="2"/>
+      <rect x="53" y="36" width="7" height="28" rx="2"/>
+    </g>
+    <g class="splash-ball">
+      <circle cx="50" cy="10" r="6.5"/>
+      <polygon points="50,5.3 53.2,7.6 52,11.4 48,11.4 46.8,7.6" class="splash-ball-panel"/>
+    </g>
+  </svg>
+  <p class="splash-word">GATEWAY<em>AI</em></p>
+  <p class="splash-tag">AI Command Layer · FIFA World Cup 2026</p>
+  <button class="splash-skip" id="splashSkip">Skip intro</button>
+</div>
+
+<div class="bg-ambient" aria-hidden="true"></div>
+
+<!-- LIVE TICKER -->
+<div class="ticker-bar" aria-hidden="true">
+  <div class="ticker-track" id="tickerTrack"></div>
+</div>
+
+<!-- NAV -->
+<header class="site-header">
+  <div class="wrap header-inner">
+    <button type="button" class="brand" data-scroll="top">
+      <svg class="brand-mark" viewBox="0 0 100 100" role="img" aria-label="GATEWAY AI">
+        <rect width="100" height="100" rx="22"/>
+        <circle cx="50" cy="50" r="38" class="brand-ring"/>
+        <rect x="39" y="34" width="8" height="32" rx="2" class="brand-bar"/>
+        <rect x="53" y="34" width="8" height="32" rx="2" class="brand-bar"/>
+        <g class="brand-ball">
+          <circle cx="50" cy="13" r="7.5"/>
+          <polygon points="50,7.8 53.6,10.4 52.2,14.6 47.8,14.6 46.4,10.4" class="brand-ball-panel"/>
+        </g>
+      </svg>
+      <span class="brand-word">GATEWAY<em>AI</em></span>
+    </button>
+    <nav class="main-nav" id="mainNav">
+      <button type="button" data-scroll="match">Match Center</button>
+      <button type="button" data-scroll="navigator">Navigator</button>
+      <button type="button" data-scroll="crowd">Crowd Intel</button>
+      <button type="button" data-scroll="lingo">Lingo</button>
+      <button type="button" data-scroll="access">Access &amp; Transit</button>
+      <button type="button" data-scroll="ticketing">Ticketing</button>
+      <button type="button" data-scroll="ops">Ops Console</button>
+    </nav>
+    <div class="header-actions">
+      <button class="btn btn-ghost" id="assistantToggleBtn">Ask GATEWAY</button>
+      <button class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="mainNav">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- QUICK-JUMP SECTION NAV -->
+<nav class="section-dots" id="sectionDots" aria-label="Jump to section">
+  <button type="button" data-scroll="match" data-target="match" style="--acc-dot:var(--sky-bright)"><span class="dot-label">Match Center</span></button>
+  <button type="button" data-scroll="navigator" data-target="navigator" style="--acc-dot:var(--turf-bright)"><span class="dot-label">Navigator</span></button>
+  <button type="button" data-scroll="crowd" data-target="crowd" style="--acc-dot:var(--amber)"><span class="dot-label">Crowd Intel</span></button>
+  <button type="button" data-scroll="lingo" data-target="lingo" style="--acc-dot:var(--violet)"><span class="dot-label">Lingo</span></button>
+  <button type="button" data-scroll="access" data-target="access" style="--acc-dot:var(--coral)"><span class="dot-label">Access &amp; Transit</span></button>
+  <button type="button" data-scroll="ticketing" data-target="ticketing" style="--acc-dot:var(--gold)"><span class="dot-label">Ticketing</span></button>
+  <button type="button" data-scroll="ops" data-target="ops" style="--acc-dot:var(--signal-red)"><span class="dot-label">Ops Console</span></button>
+</nav>
+
+<main id="top">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-copy reveal">
+        <p class="eyebrow">GATE 00 — MATCH DAY, MINUS 4:00:00</p>
+        <h1>The stadium already<br> knows what you need.</h1>
+        <p class="hero-sub">GATEWAY is a generative-AI command layer running underneath FIFA World Cup 2026 venues — reading crowd flow, translating in real time, and answering every fan, volunteer, and operator question before the queue forms.</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" id="heroTryBtn">Try the assistant</button>
+          <button type="button" class="btn btn-outline" data-scroll="crowd">See live venue intelligence</button>
+        </div>
+        <div class="hero-stats">
+          <div><strong id="statLangs">42</strong><span>languages understood, live</span></div>
+          <div><strong id="statGates">16</strong><span>gates monitored per venue</span></div>
+          <div><strong id="statLatency">1.8s</strong><span>avg. answer time</span></div>
+        </div>
+      </div>
+      <div class="hero-panel reveal" aria-hidden="true">
+        <div class="scoreboard">
+          <div class="scoreboard-row scoreboard-head">
+            <span>VENUE</span><span>STATUS</span><span>LOAD</span>
+          </div>
+          <div id="scoreboardBody"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MATCH CENTER -->
+  <section class="section" id="match" style="--acc:var(--sky-bright)">
+    <div class="wrap">
+      <div class="reveal">
+      <p class="eyebrow eyebrow-sky">GATE 01 — MATCH CENTER</p>
+      <h2>The bracket, live from the concourse.</h2>
+      <p class="section-sub">GATEWAY pipes tournament results straight to every gate screen and to your phone — no separate app, no refresh.</p>
+      </div>
+
+      <div class="match-grid reveal">
+        <div class="match-card match-final-teaser">
+          <p class="eyebrow eyebrow-sky">FIFA World Cup 2026 · Final</p>
+          <div class="match-final-teams">
+            <span class="match-final-team">Spain</span>
+            <span class="match-final-vs">vs</span>
+            <span class="match-final-team" id="finalOpponent">Winner, ENG–ARG</span>
+          </div>
+          <p class="muted">Sunday, July 19 · 3:00 PM ET · MetLife Stadium, New York/New Jersey</p>
+          <div class="countdown" id="finalCountdown" aria-live="polite">
+            <div><strong id="cdDays">--</strong><span>days</span></div>
+            <div><strong id="cdHours">--</strong><span>hrs</span></div>
+            <div><strong id="cdMins">--</strong><span>min</span></div>
+            <div><strong id="cdSecs">--</strong><span>sec</span></div>
+          </div>
+        </div>
+
+        <div class="match-list" id="matchList"></div>
+      </div>
+      <p class="muted match-disclaimer">Completed results reflect the real FIFA World Cup 2026 knockout stage. In-progress scores and minute counts illustrate GATEWAY's live feed for this prototype.</p>
+    </div>
+  </section>
+
+  <!-- NAVIGATOR -->
+  <section class="section" id="navigator" style="--acc:var(--turf-bright)">
+    <div class="wrap">
+      <div class="reveal">
+      <p class="eyebrow">GATE 02 — WAYFINDING</p>
+      <h2>Ask the concourse a question. It answers back.</h2>
+      <p class="section-sub">Tap a gate on the live map, or type what you're looking for — GATEWAY resolves it against real-time occupancy, not a static directory.</p>
+      </div>
+
+      <div class="navigator-grid reveal">
+        <div class="map-card">
+          <svg id="stadiumMap" viewBox="0 0 600 460" role="img" aria-label="Interactive stadium map with clickable gates">
+            <defs>
+              <pattern id="turfStripes" width="26" height="90" patternUnits="userSpaceOnUse">
+                <rect width="26" height="90" fill="#1F6F4A"/>
+                <rect width="13" height="90" fill="#24815a"/>
+              </pattern>
+              <radialGradient id="floodGlow" cx="50%" cy="35%" r="65%">
+                <stop offset="0%" stop-color="#2E9E68" stop-opacity="0.28"/>
+                <stop offset="100%" stop-color="#2E9E68" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <ellipse cx="300" cy="230" rx="270" ry="190" fill="url(#floodGlow)"/>
+            <ellipse cx="300" cy="230" rx="230" ry="150" class="map-bowl"/>
+            <ellipse cx="300" cy="230" rx="150" ry="95" class="map-pitch-ring"/>
+            <rect x="220" y="185" width="160" height="90" rx="6" class="map-pitch" fill="url(#turfStripes)"/>
+            <line x1="300" y1="185" x2="300" y2="275" class="map-pitch-line"/>
+            <circle cx="300" cy="230" r="24" class="map-pitch-line-circle"/>
+            <!-- gates placed around ellipse -->
+            <g id="gatesLayer"></g>
+          </svg>
+          <div class="map-legend">
+            <span><i class="dot dot-low"></i> Clear</span>
+            <span><i class="dot dot-mid"></i> Moderate</span>
+            <span><i class="dot dot-high"></i> Congested</span>
+          </div>
+        </div>
+
+        <div class="navigator-side">
+          <div class="gate-detail" id="gateDetail">
+            <p class="eyebrow">Select a gate</p>
+            <p class="muted">Click any gate marker to pull its live GATEWAY briefing — queue time, nearest amenities, and a rerouting suggestion if it's busy.</p>
+          </div>
+
+          <form class="ask-form" id="wayfindForm">
+            <label for="wayfindInput">Or just ask</label>
+            <div class="ask-row">
+              <input type="text" id="wayfindInput" placeholder="e.g. nearest accessible restroom to Section 118" autocomplete="off">
+              <button type="submit" class="btn btn-primary btn-sm">Ask</button>
+            </div>
+            <div class="ask-chips">
+              <button type="button" class="chip" data-q="fastest way to my seat section 214">Fastest route to Sec. 214</button>
+              <button type="button" class="chip" data-q="quietest gate right now">Quietest gate now</button>
+              <button type="button" class="chip" data-q="where is the nearest first aid station">Nearest first aid</button>
+            </div>
+          </form>
+          <div class="ask-answer" id="wayfindAnswer"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CROWD INTELLIGENCE -->
+  <section class="section section-dark" id="crowd" style="--acc:var(--amber)">
+    <div class="wrap">
+      <div class="reveal">
+      <p class="eyebrow">GATE 03 — CROWD INTELLIGENCE</p>
+      <h2>Density before it becomes a bottleneck.</h2>
+      <p class="section-sub">GATEWAY fuses turnstile counts, concourse cameras, and transit arrivals into a rolling forecast — then drafts the redirect message for staff before congestion peaks.</p>
+      </div>
+
+      <div class="crowd-grid reveal">
+        <div class="crowd-bars" id="crowdBars"></div>
+        <div class="crowd-ai">
+          <div class="ai-card">
+            <p class="eyebrow eyebrow-light">AI Recommendation</p>
+            <p id="crowdRecommendation" class="ai-recommendation">Reading live turnstile data…</p>
+            <button class="btn btn-outline btn-sm" id="regenRecBtn">Regenerate forecast</button>
+          </div>
+          <div class="ai-card ai-card-quiet">
+            <p class="eyebrow eyebrow-light">Predicted peak</p>
+            <p class="big-number" id="peakEta">T‑38 min</p>
+            <p class="muted">Estimated time to next congestion threshold at Gate C, based on current arrival rate.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LINGO -->
+  <section class="section" id="lingo" style="--acc:var(--violet)">
+    <div class="wrap">
+      <div class="reveal">
+      <p class="eyebrow eyebrow-violet">GATE 04 — MULTILINGUAL ASSISTANCE</p>
+      <h2>Every fan, in their own language, instantly.</h2>
+      <p class="section-sub">Type a stadium phrase once — GATEWAY renders it for staff signage, volunteer scripts, and push alerts across the tournament's working languages.</p>
+      </div>
+
+      <div class="lingo-card reveal">
+        <div class="lingo-input-row">
+          <input type="text" id="lingoInput" value="Please have your ticket and ID ready at this gate." placeholder="Type an announcement...">
+          <select id="lingoLang">
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="pt">Português</option>
+            <option value="ar">العربية</option>
+            <option value="ja">日本語</option>
+            <option value="de">Deutsch</option>
+          </select>
+          <button class="btn btn-primary btn-sm" id="lingoBtn">Translate</button>
+        </div>
+        <div class="lingo-output" id="lingoOutput">
+          <p class="muted">Translation will appear here.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACCESSIBILITY + TRANSPORT -->
+  <section class="section section-dark" id="access" style="--acc:var(--coral)">
+    <div class="wrap access-grid">
+      <div class="reveal">
+        <p class="eyebrow eyebrow-coral">GATE 05 — ACCESSIBILITY</p>
+        <h2>Routes that account for the whole fan.</h2>
+        <p class="section-sub section-sub-light">Select what matters for your visit — GATEWAY re-plans the concourse route and flags which entrances currently support it.</p>
+        <div class="access-options" id="accessOptions">
+          <label><input type="checkbox" value="wheelchair"> Wheelchair access</label>
+          <label><input type="checkbox" value="sensory"> Low-sensory route</label>
+          <label><input type="checkbox" value="stroller"> Stroller-friendly</label>
+          <label><input type="checkbox" value="hearing"> Hearing loop seating</label>
+        </div>
+        <button class="btn btn-outline btn-sm" id="accessBtn">Build my route</button>
+        <div class="ai-recommendation" id="accessOutput" style="margin-top:16px;"></div>
+      </div>
+
+      <div class="reveal">
+        <p class="eyebrow eyebrow-light">GATE 06 — TRANSPORT &amp; SUSTAINABILITY</p>
+        <h2>The greenest way in, calculated live.</h2>
+        <p class="section-sub section-sub-light">Tell GATEWAY where you're starting from — it weighs transit load, walk time, and emissions to suggest the best way to the gate.</p>
+        <div class="transit-form">
+          <select id="transitFrom">
+            <option value="downtown">Downtown transit hub</option>
+            <option value="airport">Airport</option>
+            <option value="suburb">Suburban park &amp; ride</option>
+            <option value="hotel">Hotel district</option>
+          </select>
+          <button class="btn btn-outline btn-sm" id="transitBtn">Get my route</button>
+        </div>
+        <div class="ai-recommendation" id="transitOutput"></div>
+        <div class="co2-track">
+          <div class="co2-bar"><div class="co2-fill" id="co2Fill"></div></div>
+          <p class="muted" id="co2Label">Tournament-wide CO₂ avoided by transit-first routing: calculating…</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TICKETING -->
+  <section class="section" id="ticketing" style="--acc:var(--gold)">
+    <div class="wrap">
+      <div class="reveal">
+      <p class="eyebrow eyebrow-gold">GATE 07 — LIVE TICKETING</p>
+      <h2>Dynamic pricing, read in real time.</h2>
+      <p class="section-sub">FIFA prices World Cup tickets dynamically as demand shifts. GATEWAY watches that feed live so you know exactly what a seat costs right now — not what it cost this morning.</p>
+      </div>
+
+      <div class="ticket-grid reveal">
+        <form class="ticket-form" id="ticketForm">
+          <label for="ticketMatch">Match</label>
+          <select id="ticketMatch">
+            <option value="bronze">Bronze Final — France vs. Runner-up · Jul 18 · Miami</option>
+            <option value="final">Final — Spain vs. Winner ENG/ARG · Jul 19 · New York/New Jersey</option>
+          </select>
+          <label for="ticketTier">Seating tier</label>
+          <select id="ticketTier">
+            <option value="category3">Category 3 — upper level</option>
+            <option value="category2">Category 2 — lower level</option>
+            <option value="category1">Category 1 — sideline</option>
+            <option value="hospitality">Hospitality suite</option>
+          </select>
+          <button type="submit" class="btn btn-primary btn-sm">Check live price</button>
+        </form>
+
+        <div class="ticket-result" id="ticketResult">
+          <p class="eyebrow eyebrow-gold">Live quote</p>
+          <p class="muted">Choose a match and tier — GATEWAY pulls the current dynamic price and remaining inventory.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- OPS CONSOLE -->
+  <section class="section" id="ops" style="--acc:var(--signal-red)">
+    <div class="wrap">
+      <div class="reveal">
+      <p class="eyebrow">GATE 08 — VOLUNTEER &amp; OPERATIONS CONSOLE</p>
+      <h2>Triage at the speed of a tap.</h2>
+      <p class="section-sub">Volunteers file what they see in plain language. GATEWAY classifies severity, routes it to the right team, and drafts the dispatch note.</p>
+      </div>
+
+      <div class="ops-grid reveal">
+        <form class="ops-form" id="opsForm">
+          <label for="opsInput">What's happening, and where?</label>
+          <textarea id="opsInput" rows="3" placeholder="e.g. Long queue building at Gate F, two food stalls closed, fans getting frustrated"></textarea>
+          <button type="submit" class="btn btn-primary btn-sm">Submit to GATEWAY</button>
+        </form>
+        <div class="ops-log" id="opsLog">
+          <p class="eyebrow">Live dispatch log</p>
+          <div id="opsEntries"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div>
+      <div class="footer-brand">
+        <svg class="brand-mark" viewBox="0 0 100 100" role="img" aria-label="GATEWAY AI">
+          <rect width="100" height="100" rx="22"/>
+          <circle cx="50" cy="50" r="38" class="brand-ring"/>
+          <rect x="39" y="34" width="8" height="32" rx="2" class="brand-bar"/>
+          <rect x="53" y="34" width="8" height="32" rx="2" class="brand-bar"/>
+          <g class="brand-ball">
+          <circle cx="50" cy="13" r="7.5"/>
+          <polygon points="50,7.8 53.6,10.4 52.2,14.6 47.8,14.6 46.4,10.4" class="brand-ball-panel"/>
+        </g>
+        </svg>
+        <span class="brand-word">GATEWAY<em>AI</em></span>
+      </div>
+      <p class="muted">A generative-AI operations layer concept for FIFA World Cup 2026 venues. Built as a prompt-driven prototype — all data on this page is simulated.</p>
+    </div>
+    <div class="footer-links">
+      <button type="button" data-scroll="match">Match Center</button><button type="button" data-scroll="navigator">Navigator</button><button type="button" data-scroll="crowd">Crowd Intel</button><button type="button" data-scroll="lingo">Lingo</button><button type="button" data-scroll="access">Access &amp; Transit</button><button type="button" data-scroll="ticketing">Ticketing</button><button type="button" data-scroll="ops">Ops Console</button>
+    </div>
+  </div>
+</footer>
+
+<!-- FLOATING ASSISTANT -->
+<div class="assistant-launcher" id="assistantLauncher" role="button" aria-label="Open GATEWAY assistant">
+  <span>Ask GATEWAY</span>
+</div>
+
+<div class="assistant-panel" id="assistantPanel">
+  <div class="assistant-head">
+    <div>
+      <strong>GATEWAY Assistant</strong>
+      <span class="assistant-status"><i class="pulse"></i> live at this venue</span>
+    </div>
+    <button class="assistant-close" id="assistantClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="assistant-persona">
+    <button class="persona-btn active" data-persona="fan">Fan</button>
+    <button class="persona-btn" data-persona="volunteer">Volunteer</button>
+    <button class="persona-btn" data-persona="organizer">Organizer</button>
+  </div>
+  <div class="assistant-messages" id="assistantMessages"></div>
+  <form class="assistant-input-row" id="assistantForm">
+    <input type="text" id="assistantInput" placeholder="Ask about gates, seats, transit, safety…" autocomplete="off">
+    <button type="submit" class="btn btn-primary btn-sm">Send</button>
+  </form>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
