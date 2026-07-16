@@ -3,7 +3,7 @@ const {
   answerWayfinding,
   classifyIncident,
   translate,
-} = require("../public/logic.js");
+} = require("./logic.js")
 
 describe("escapeHtml", () => {
   test("neutralizes script tags (XSS regression guard)", () => {
