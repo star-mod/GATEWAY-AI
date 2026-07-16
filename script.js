@@ -6,6 +6,37 @@
    a live LLM API call would plug in.
    ========================================================= */
 
+/* ---------- GENAI BACKEND ---------- */
+// Real Claude API calls go through server/server.js so the API key never
+// ships to the browser. If no backend is configured (e.g. this page is
+// hosted as static-only), every AI feature below falls back to the
+// rule-based simulation in logic.js so the demo still works end to end.
+const API_BASE = window.GATEWAY_API_BASE || ""; // e.g. "https://your-backend.onrender.com"
+
+async function callGatewayAI(path, body, timeoutMs = 6000) {
+  if (!API_BASE) throw new Error("no backend configured");
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`backend ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+// EFFICIENCY: skip the tick when the tab is backgrounded — these loops
+// simulate live data and don't need to run for a user who isn't looking.
+function liveInterval(fn, ms){
+  return setInterval(()=>{ if(document.visibilityState === "visible") fn(); }, ms);
+}
+
 /* ---------- DATA ---------- */
 const VENUES = [
   {name:"MetLife Stadium", status:"clear", load:34},
@@ -88,7 +119,7 @@ function renderScoreboard(){
     </div>`).join("");
 }
 renderScoreboard();
-setInterval(()=>{
+liveInterval(()=>{
   VENUES.forEach(v=>{
     v.load = Math.max(10, Math.min(96, v.load + (Math.random()*14-7)));
     v.status = v.load < 45 ? "clear" : v.load < 75 ? "moderate" : "congested";
@@ -151,7 +182,7 @@ function showGateDetail(id){
 }
 showGateDetail("C");
 
-setInterval(()=>{
+liveInterval(()=>{
   const ids = Object.keys(gateState);
   const id = ids[Math.floor(Math.random()*ids.length)];
   gateState[id] = randomStatus();
@@ -159,35 +190,21 @@ setInterval(()=>{
 }, 3500);
 
 /* ---------- WAYFINDING ASK ---------- */
-// In production this input would be sent to an LLM (e.g. Claude via the
-// Messages API) along with live occupancy + venue-map context. Here we
-// simulate that response with a small intent-matching engine.
-function answerWayfinding(q){
-  const query = q.toLowerCase();
-  if(query.includes("restroom") || query.includes("bathroom") || query.includes("toilet")){
-    return "The nearest accessible restroom is on the West concourse, 40m past Gate A — no stairs, wide stalls, and a companion-care room attached.";
+// Sends the question + live occupancy context to the real Claude API via
+// /api/assistant. Falls back to the local rule-based engine in logic.js
+// if the backend isn't reachable (e.g. static-only hosting).
+async function answerWayfinding(q){
+  const context = `Live gate occupancy snapshot: ${Object.entries(gateState).map(([id,s])=>`${id}:${s.status}`).join(", ")}. Fan question: ${q}`;
+  try {
+    const data = await callGatewayAI("/api/assistant", { message: context, persona: "fan" });
+    if (data && data.reply) return data.reply;
+    throw new Error("empty reply");
+  } catch (err) {
+    return window.GatewayLogic.answerWayfinding(q, gateState);
   }
-  if(query.includes("first aid") || query.includes("medical") || query.includes("injur")){
-    return "First aid is staffed at the North plaza near Gate H, with a second station behind Section 210. Both are marked with a red cross on concourse signage.";
-  }
-  if(query.includes("quiet")){
-    const low = GATES.filter(g=> gateState[g.id].status==="low");
-    const pick = low[0] || GATES[0];
-    return `${pick.label} is currently the quietest entrance — load is under 30% with no queue at security.`;
-  }
-  if(query.match(/section|seat/)){
-    return "Based on your section, the fastest path is through Gate D, up the East ramp, then follow the amber section markers — about 6 minutes from the plaza.";
-  }
-  if(query.includes("food") || query.includes("eat") || query.includes("drink")){
-    return "The East concourse food hall near Gate F has the shortest lines right now, with three stands open and no wait over 4 minutes.";
-  }
-  if(query.includes("parking") || query.includes("car")){
-    return "Lot C off the north access road has the most remaining capacity — about a 9 minute walk to Gate H, with a shuttle running every 8 minutes.";
-  }
-  return "Here's what GATEWAY found: the shortest path from your current concourse position is via the amber wayfinding markers toward the nearest low-congestion gate — tap a gate on the map for a live queue estimate.";
 }
 
-document.getElementById("wayfindForm").addEventListener("submit", e=>{
+document.getElementById("wayfindForm").addEventListener("submit", async e=>{
   e.preventDefault();
   const input = document.getElementById("wayfindInput");
   const q = input.value.trim();
@@ -195,7 +212,7 @@ document.getElementById("wayfindForm").addEventListener("submit", e=>{
   const out = document.getElementById("wayfindAnswer");
   out.classList.add("show");
   out.textContent = "GATEWAY is checking live concourse data…";
-  setTimeout(()=>{ out.textContent = answerWayfinding(q); }, 550);
+  out.textContent = await answerWayfinding(q);
 });
 document.querySelectorAll(".chip").forEach(chip=>{
   chip.addEventListener("click", ()=>{
@@ -247,42 +264,28 @@ function refreshCrowd(){
 }
 refreshCrowd();
 document.getElementById("regenRecBtn").addEventListener("click", refreshCrowd);
-setInterval(refreshCrowd, 8000);
+liveInterval(refreshCrowd, 8000);
 
 /* ---------- MULTILINGUAL ---------- */
-// Simulated generative translation via small phrase-template dictionary,
-// standing in for a live multilingual LLM completion.
-const PHRASE_BANK = {
-  es: {
-    "ticket":"Ten tu entrada e identificación listas en esta puerta.",
-    "restroom":"Los baños accesibles están a 40 metros de esta puerta.",
-    "delay":"El ingreso está tardando más de lo normal, gracias por tu paciencia.",
-    "default":(s)=>`[ES] Por favor, tenga su entrada e identificación listas en esta puerta. Siga las indicaciones del personal de GATEWAY.`
-  },
-  fr: {default:(s)=>`[FR] Merci de préparer votre billet et votre pièce d'identité à cette porte. Suivez les indications du personnel GATEWAY.`},
-  pt: {default:(s)=>`[PT] Tenha seu ingresso e documento de identidade prontos neste portão. Siga as orientações da equipe GATEWAY.`},
-  ar: {default:(s)=>`[AR] يرجى تجهيز تذكرتك وهويتك عند هذه البوابة. اتبعوا إرشادات فريق GATEWAY.`},
-  ja: {default:(s)=>`[JA] このゲートではチケットと身分証明書をご準備ください。GATEWAYスタッフの案内に従ってください。`},
-  de: {default:(s)=>`[DE] Bitte halten Sie Ihr Ticket und Ihren Ausweis an diesem Tor bereit. Folgen Sie den Hinweisen des GATEWAY-Personals.`},
-};
-const LANG_NAMES = {es:"Español",fr:"Français",pt:"Português",ar:"العربية",ja:"日本語",de:"Deutsch"};
-
-function translate(text, lang){
-  const bank = PHRASE_BANK[lang] || {};
-  const lower = text.toLowerCase();
-  if(bank.ticket && lower.includes("ticket")) return bank.ticket;
-  if(bank.restroom && (lower.includes("restroom")||lower.includes("bathroom"))) return bank.restroom;
-  if(bank.delay && (lower.includes("delay")||lower.includes("wait")||lower.includes("longer"))) return bank.delay;
-  return bank.default(text);
+// Sends text to the real Claude API for translation via /api/translate.
+// Falls back to logic.js's small phrase bank if the backend is unreachable.
+async function translate(text, lang){
+  try {
+    const data = await callGatewayAI("/api/translate", { text, lang });
+    if (data && data.translated) return data.translated;
+    throw new Error("empty translation");
+  } catch (err) {
+    return window.GatewayLogic.translate(text, lang);
+  }
 }
-document.getElementById("lingoBtn").addEventListener("click", ()=>{
+document.getElementById("lingoBtn").addEventListener("click", async ()=>{
   const text = document.getElementById("lingoInput").value.trim() || "Please have your ticket and ID ready at this gate.";
   const lang = document.getElementById("lingoLang").value;
+  const langName = window.GatewayLogic.LANG_NAMES[lang];
   const out = document.getElementById("lingoOutput");
-  out.innerHTML = `<span class="lang-tag">${LANG_NAMES[lang]} · generating…</span>`;
-  setTimeout(()=>{
-    out.innerHTML = `<span class="lang-tag">${LANG_NAMES[lang]}</span>${translate(text, lang)}`;
-  }, 450);
+  out.innerHTML = `<span class="lang-tag">${window.GatewayLogic.escapeHtml(langName)} · generating…</span>`;
+  const result = await translate(text, lang);
+  out.innerHTML = `<span class="lang-tag">${window.GatewayLogic.escapeHtml(langName)}</span>${window.GatewayLogic.escapeHtml(result)}`;
 });
 
 /* ---------- ACCESSIBILITY ---------- */
@@ -333,50 +336,50 @@ function updateCo2(){
 updateCo2();
 
 /* ---------- OPS CONSOLE ---------- */
-// Simulated triage classifier — in production this maps to an LLM call
-// that reads the free-text report and returns {severity, team, note}.
-function classifyIncident(text){
-  const t = text.toLowerCase();
-  let severity = "low", team = "Concourse Volunteers";
-  if(t.match(/medical|injur|collapse|chest pain|unconscious/)){ severity="high"; team="Medical Response"; }
-  else if(t.match(/fight|altercation|aggressive|threat|weapon/)){ severity="high"; team="Security"; }
-  else if(t.match(/queue|crowd|congest|frustrat|long line/)){ severity="medium"; team="Crowd Management"; }
-  else if(t.match(/closed|stall|equipment|broken|spill/)){ severity="medium"; team="Facilities"; }
-  else if(t.match(/lost child|missing/)){ severity="high"; team="Guest Services / Security"; }
-
-  const dispatch = severity==="high"
-    ? `Priority dispatch to ${team}: immediate response requested. Nearest unit being notified.`
-    : severity==="medium"
-    ? `Routed to ${team}. Added to the next patrol sweep — response expected within 10 minutes.`
-    : `Logged for ${team}. No immediate dispatch required; monitoring for escalation.`;
-  return {severity, team, dispatch};
+// Sends the free-text report to the real Claude API via /api/triage, which
+// returns {severity, team, dispatch}. Falls back to logic.js's rule-based
+// classifier if the backend is unreachable.
+async function classifyIncident(text){
+  try {
+    const data = await callGatewayAI("/api/triage", { text });
+    if (data && data.severity && data.team && data.dispatch) return data;
+    throw new Error("malformed triage response");
+  } catch (err) {
+    return window.GatewayLogic.classifyIncident(text);
+  }
 }
 
+// SECURITY: user-submitted report text is escaped before being placed in
+// innerHTML. Without this, a report like "<img src=x onerror=alert(1)>"
+// would execute as script in every operator's browser (stored XSS).
 function addOpsEntry(text, result){
   const wrap = document.getElementById("opsEntries");
   const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
   const entry = document.createElement("div");
   entry.className = `ops-entry sev-${result.severity}`;
+  const esc = window.GatewayLogic.escapeHtml;
   entry.innerHTML = `
-    <span class="sev-tag">${result.severity} priority · ${result.team}</span>
-    <p>${text}</p>
-    <p class="ops-meta">${time} — ${result.dispatch}</p>
+    <span class="sev-tag">${esc(result.severity)} priority · ${esc(result.team)}</span>
+    <p>${esc(text)}</p>
+    <p class="ops-meta">${esc(time)} — ${esc(result.dispatch)}</p>
   `;
   wrap.prepend(entry);
 }
 
-document.getElementById("opsForm").addEventListener("submit", e=>{
+document.getElementById("opsForm").addEventListener("submit", async e=>{
   e.preventDefault();
   const input = document.getElementById("opsInput");
   const text = input.value.trim();
   if(!text) return;
-  const result = classifyIncident(text);
-  addOpsEntry(text, result);
   input.value = "";
+  const result = await classifyIncident(text);
+  addOpsEntry(text, result);
 });
 // seed a couple of example entries
-addOpsEntry("Two food stalls closed near Gate F, queue backing into the concourse", classifyIncident("Two food stalls closed near Gate F, queue backing into the concourse"));
-addOpsEntry("Fan reporting dizziness near Section 108, requesting medical", classifyIncident("Fan reporting dizziness near Section 108, requesting medical"));
+(async ()=>{
+  addOpsEntry("Two food stalls closed near Gate F, queue backing into the concourse", await classifyIncident("Two food stalls closed near Gate F, queue backing into the concourse"));
+  addOpsEntry("Fan reporting dizziness near Section 108, requesting medical", await classifyIncident("Fan reporting dizziness near Section 108, requesting medical"));
+})();
 
 /* ---------- FLOATING ASSISTANT ---------- */
 const assistantPanel = document.getElementById("assistantPanel");
@@ -417,9 +420,20 @@ function pushMessage(who, text){
   assistantMessages.scrollTop = assistantMessages.scrollHeight;
 }
 
-// Rule-based response engine per persona — a stand-in for a system-prompted
-// LLM call (persona instructions + live venue context as tool results).
-function assistantReply(q, persona){
+// Sends the message + persona to the real Claude API via /api/assistant
+// (system prompt = persona instructions, server-side). Falls back to the
+// local rule-based engine below if the backend is unreachable.
+async function assistantReply(q, persona){
+  try {
+    const data = await callGatewayAI("/api/assistant", { message: q, persona });
+    if (data && data.reply) return data.reply;
+    throw new Error("empty reply");
+  } catch (err) {
+    return assistantReplyFallback(q, persona);
+  }
+}
+
+function assistantReplyFallback(q, persona){
   const t = q.toLowerCase();
   if(persona === "volunteer"){
     if(t.match(/incident|report|dispatch/)) return "Log it through the Ops Console below and I'll classify severity automatically — high priority items page Security or Medical directly.";
@@ -434,11 +448,11 @@ function assistantReply(q, persona){
     return "As an organizer, ask me about venue-wide load, staffing gaps, or arrival forecasts — I read across every gate in real time.";
   }
   // fan
-  if(t.match(/restroom|bathroom|toilet/)) return answerWayfinding("restroom");
-  if(t.match(/first aid|medical|hurt/)) return answerWayfinding("first aid");
-  if(t.match(/food|eat|drink|hungry/)) return answerWayfinding("food");
-  if(t.match(/quiet|less busy|shortest/)) return answerWayfinding("quietest gate right now");
-  if(t.match(/parking|car/)) return answerWayfinding("parking");
+  if(t.match(/restroom|bathroom|toilet/)) return window.GatewayLogic.answerWayfinding("restroom");
+  if(t.match(/first aid|medical|hurt/)) return window.GatewayLogic.answerWayfinding("first aid");
+  if(t.match(/food|eat|drink|hungry/)) return window.GatewayLogic.answerWayfinding("food");
+  if(t.match(/quiet|less busy|shortest/)) return window.GatewayLogic.answerWayfinding("quietest gate right now", gateState);
+  if(t.match(/parking|car/)) return window.GatewayLogic.answerWayfinding("parking");
   if(t.match(/language|translat/)) return "I can respond in Spanish, French, Portuguese, Arabic, Japanese, and German — try the Lingo section below, or just ask me in your language.";
   if(t.match(/accessib|wheelchair|stroller/)) return "Head to the Access & Transit section below — tell me your needs and I'll build a step-free route with the nearest supported gate.";
   if(t.match(/score|match|semi|final|argentina|england|spain|france/)) return "Spain beat France 2-0 and are through to Sunday's Final at MetLife Stadium. England and Argentina are live now in Atlanta for the second semifinal spot — check the Match Center below for the live score.";
@@ -447,7 +461,7 @@ function assistantReply(q, persona){
   return "Here's what I found: check the live gate map above for real-time queue status, or ask me something specific — restrooms, food, transit, or accessibility.";
 }
 
-document.getElementById("assistantForm").addEventListener("submit", e=>{
+document.getElementById("assistantForm").addEventListener("submit", async e=>{
   e.preventDefault();
   const input = document.getElementById("assistantInput");
   const q = input.value.trim();
@@ -459,10 +473,9 @@ document.getElementById("assistantForm").addEventListener("submit", e=>{
   typing.textContent = "…";
   assistantMessages.appendChild(typing);
   assistantMessages.scrollTop = assistantMessages.scrollHeight;
-  setTimeout(()=>{
-    typing.remove();
-    pushMessage("bot", assistantReply(q, currentPersona));
-  }, 600);
+  const reply = await assistantReply(q, currentPersona);
+  typing.remove();
+  pushMessage("bot", reply);
 });
 
 /* ---------- MATCH CENTER ---------- */
@@ -503,7 +516,7 @@ renderMatchList();
 
 // Simulate the live semifinal ticking forward — standing in for a live
 // sports-data feed polling every few seconds.
-setInterval(()=>{
+liveInterval(()=>{
   const live = MATCHES.find(m=> m.status === "live");
   if(!live) return;
   if(live.minute < 90){
