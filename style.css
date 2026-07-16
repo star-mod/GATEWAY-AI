@@ -1,673 +1,508 @@
-/* =========================================================
-   GATEWAY AI — prototype logic
-   All "AI" here is a rule-based / templated simulation running
-   entirely client-side, standing in for a generative model call
-   (e.g. Claude) in a production deployment. Comments mark where
-   a live LLM API call would plug in.
-   ========================================================= */
+/* ===== TOKENS ===== */
+:root{
+  --pitch-night:#0B1F17;
+  --pitch-night-2:#0F2A20;
+  --turf:#1F6F4A;
+  --turf-bright:#2E9E68;
+  --floodlight:#F5F7F2;
+  --amber:#FFB627;
+  --signal-red:#E8483A;
+  --steel:#4A5A54;
+  --steel-line:rgba(245,247,242,0.14);
+  --paper:#F5F3EC;
+  --ink:#101815;
 
-/* ---------- GENAI BACKEND ---------- */
-// Real Claude API calls go through server/server.js so the API key never
-// ships to the browser. If no backend is configured (e.g. this page is
-// hosted as static-only), every AI feature below falls back to the
-// rule-based simulation in logic.js so the demo still works end to end.
-const API_BASE = window.GATEWAY_API_BASE || ""; // e.g. "https://your-backend.onrender.com"
+  --sky:#2E8FE0;
+  --sky-bright:#57ABF0;
+  --gold:#D8A63D;
+  --violet:#8B7FF5;
+  --coral:#FF6E51;
 
-async function callGatewayAI(path, body, timeoutMs = 6000) {
-  if (!API_BASE) throw new Error("no backend configured");
-  const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(`${API_BASE}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    if (!res.ok) throw new Error(`backend ${res.status}`);
-    return await res.json();
-  } finally {
-    clearTimeout(t);
+  --display:'Anton', Impact, sans-serif;
+  --body:'Archivo', system-ui, sans-serif;
+  --mono:'IBM Plex Mono', monospace;
+
+  --radius:10px;
+  --header-h:66px;
+  --focus:#7FD6AE;
+}
+
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--body);
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto;}
+  *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important;}
+}
+
+.wrap{max-width:1180px; margin:0 auto; padding:0 28px;}
+a{color:inherit;}
+img,svg{display:block; max-width:100%;}
+section[id], main[id]{scroll-margin-top:var(--header-h);}
+
+:focus-visible{outline:2.5px solid var(--focus); outline-offset:3px; border-radius:4px;}
+.section-dark :focus-visible, .assistant-panel :focus-visible{outline-color:var(--turf-bright);}
+button, input, select, textarea, a{font:inherit;}
+
+/* Reset native button chrome for link-styled nav/footer/dot buttons */
+.main-nav button, .footer-links button, .brand, .section-dots button{
+  background:none; border:none; padding:0; margin:0; cursor:pointer; text-align:left; color:inherit;
+}
+
+h1,h2{font-family:var(--display); font-weight:400; letter-spacing:0.2px; margin:0 0 14px; line-height:1.02; text-transform:uppercase;}
+h1{font-size:clamp(2.6rem, 5.4vw, 4.6rem);}
+h2{font-size:clamp(1.9rem, 3.4vw, 3rem);}
+p{margin:0 0 14px;}
+.muted{color:var(--steel); font-size:0.93rem;}
+.eyebrow{
+  font-family:var(--mono); font-size:0.78rem; letter-spacing:0.14em; text-transform:uppercase;
+  color:var(--turf); margin:0 0 10px; font-weight:600;
+}
+.eyebrow-light{color:var(--amber);}
+.eyebrow-sky{color:var(--sky-bright);}
+.eyebrow-gold{color:var(--gold);}
+.eyebrow-violet{color:var(--violet);}
+.eyebrow-coral{color:var(--coral);}
+.section-sub{max-width:640px; color:var(--steel); font-size:1.05rem;}
+.section-sub-light{color:rgba(245,247,242,0.72);}
+
+/* buttons */
+.btn{
+  font-family:var(--body); font-weight:700; font-size:0.92rem; letter-spacing:0.02em;
+  padding:12px 22px; border-radius:999px; border:2px solid transparent; cursor:pointer;
+  display:inline-flex; align-items:center; gap:8px; text-decoration:none; transition:transform .15s ease, background .15s ease, color .15s ease;
+}
+.btn:hover{transform:translateY(-1px);}
+.btn:active{transform:translateY(0);}
+.btn-primary{background:var(--turf); color:var(--floodlight);}
+.btn-primary:hover{background:var(--turf-bright);}
+.btn-outline{border-color:var(--steel-line); color:var(--ink); background:transparent;}
+.section-dark .btn-outline{color:var(--floodlight); border-color:var(--steel-line);}
+.btn-outline:hover{border-color:var(--turf); color:var(--turf);}
+.btn-ghost{background:var(--floodlight); color:var(--pitch-night); border-color:var(--pitch-night);}
+.btn-sm{padding:9px 16px; font-size:0.82rem;}
+
+/* ===== TICKER ===== */
+.ticker-bar{background:var(--pitch-night); color:var(--amber); overflow:hidden; white-space:nowrap; font-family:var(--mono); font-size:0.76rem; letter-spacing:0.06em; border-bottom:1px solid var(--steel-line);}
+.ticker-track{display:inline-block; padding:6px 0; animation:ticker 32s linear infinite;}
+@keyframes ticker{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+
+/* ===== HEADER ===== */
+.site-header{position:sticky; top:0; z-index:50; height:var(--header-h); background:rgba(245,243,236,0.92); backdrop-filter:blur(8px); border-bottom:1px solid rgba(16,24,21,0.08);}
+.header-inner{display:flex; align-items:center; justify-content:space-between; padding:0 28px; height:100%;}
+.brand{display:flex; align-items:center; gap:10px; text-decoration:none;}
+.brand-mark{width:34px; height:34px; border-radius:8px; background:var(--turf); color:var(--floodlight); font-family:var(--mono); font-weight:700; display:flex; align-items:center; justify-content:center; font-size:0.85rem;}
+.brand-word{font-family:var(--display); text-transform:uppercase; font-size:1.05rem; letter-spacing:0.03em;}
+.brand-word em{font-style:normal; color:var(--turf);}
+.main-nav{display:flex; gap:26px; font-size:0.88rem; font-weight:600;}
+.main-nav button{text-decoration:none; opacity:0.75; transition:opacity .15s, color .15s;}
+.main-nav button:hover{opacity:1; color:var(--turf);}
+.header-actions{display:flex; align-items:center; gap:10px;}
+.nav-toggle{display:none; flex-direction:column; justify-content:center; gap:5px; width:38px; height:38px; border-radius:9px; border:1.5px solid rgba(16,24,21,0.15); background:transparent; cursor:pointer; padding:0;}
+.nav-toggle span{display:block; width:18px; height:2px; margin:0 auto; background:var(--ink); border-radius:2px; transition:transform .2s ease, opacity .2s ease;}
+.nav-toggle[aria-expanded="true"] span:nth-child(1){transform:translateY(7px) rotate(45deg);}
+.nav-toggle[aria-expanded="true"] span:nth-child(2){opacity:0;}
+.nav-toggle[aria-expanded="true"] span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
+
+@media (max-width: 880px){
+  .main-nav{
+    position:fixed; top:var(--header-h); left:0; right:0; z-index:49;
+    display:flex; flex-direction:column; gap:0; background:var(--paper);
+    border-bottom:1px solid rgba(16,24,21,0.08); box-shadow:0 18px 30px -20px rgba(11,31,23,0.3);
+    max-height:0; overflow:hidden; transition:max-height .28s ease;
   }
+  .main-nav.open{max-height:60vh;}
+  .main-nav button{padding:15px 28px; border-bottom:1px solid rgba(16,24,21,0.06); opacity:1;}
+  .nav-toggle{display:flex;}
 }
 
-// EFFICIENCY: skip the tick when the tab is backgrounded — these loops
-// simulate live data and don't need to run for a user who isn't looking.
-function liveInterval(fn, ms){
-  return setInterval(()=>{ if(document.visibilityState === "visible") fn(); }, ms);
+/* ===== HERO ===== */
+.hero{padding:64px 0 40px; background:radial-gradient(ellipse at top right, rgba(31,111,74,0.10), transparent 55%);}
+.hero-grid{display:grid; grid-template-columns:1.15fr 0.85fr; gap:48px; align-items:center;}
+@media (max-width:960px){.hero-grid{grid-template-columns:1fr;}}
+.hero-sub{font-size:1.08rem; color:var(--steel); max-width:540px;}
+.hero-actions{display:flex; gap:14px; flex-wrap:wrap; margin:22px 0 34px;}
+.hero-stats{display:flex; gap:36px; flex-wrap:wrap; border-top:1px solid rgba(16,24,21,0.12); padding-top:20px;}
+.hero-stats strong{display:block; font-family:var(--display); font-size:1.9rem; color:var(--turf);}
+.hero-stats span{font-size:0.82rem; color:var(--steel);}
+
+.hero-panel{background:var(--pitch-night); border-radius:16px; padding:22px; box-shadow:0 22px 50px -20px rgba(11,31,23,0.5);}
+.scoreboard{font-family:var(--mono); color:var(--floodlight);}
+.scoreboard-row{display:grid; grid-template-columns:1.4fr 1fr 0.7fr; gap:10px; padding:11px 6px; font-size:0.82rem; border-bottom:1px solid var(--steel-line); align-items:center;}
+.scoreboard-head{color:var(--amber); font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; border-bottom:1px solid var(--steel-line);}
+.status-pill{padding:3px 9px; border-radius:999px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em; width:fit-content;}
+.status-clear{background:rgba(46,158,104,0.22); color:var(--turf-bright);}
+.status-moderate{background:rgba(255,182,39,0.2); color:var(--amber);}
+.status-congested{background:rgba(232,72,58,0.2); color:#ff8b7f;}
+.load-bar{height:6px; background:var(--steel-line); border-radius:4px; overflow:hidden;}
+.load-fill{height:100%; background:var(--turf-bright); border-radius:4px; transition:width .6s ease;}
+
+/* ===== SECTIONS ===== */
+.section{padding:84px 0; position:relative;}
+.section::before{content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--acc, transparent); opacity:0.55;}
+.section-dark{background:var(--pitch-night); color:var(--floodlight);}
+.section-dark h2{color:var(--floodlight);}
+
+/* ---------- Section quick-jump dot nav ---------- */
+.section-dots{
+  position:fixed; right:22px; top:50%; transform:translateY(-50%); z-index:40;
+  display:flex; flex-direction:column; gap:14px; align-items:center;
+}
+.section-dots button{
+  position:relative; width:9px; height:9px; border-radius:50%;
+  background:rgba(16,24,21,0.18); border:1.5px solid transparent; transition:background .2s ease, transform .2s ease;
+}
+.section-dots button:hover{transform:scale(1.3);}
+.section-dots button.active{background:var(--acc-dot, var(--turf-bright)); transform:scale(1.35);}
+.section-dots button .dot-label{
+  position:absolute; right:20px; top:50%; transform:translateY(-50%) translateX(4px);
+  background:var(--pitch-night); color:var(--floodlight); font-family:var(--mono); font-size:0.68rem;
+  letter-spacing:0.05em; padding:5px 10px; border-radius:6px; white-space:nowrap;
+  opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease;
+}
+.section-dots button:hover .dot-label, .section-dots button:focus-visible .dot-label{opacity:1; transform:translateY(-50%) translateX(0);}
+@media (max-width:1180px){.section-dots{display:none;}}
+
+/* NAVIGATOR */
+.navigator-grid{display:grid; grid-template-columns:1.2fr 1fr; gap:36px; margin-top:36px; align-items:start;}
+@media (max-width:900px){.navigator-grid{grid-template-columns:1fr;}}
+.map-card{background:var(--pitch-night); border-radius:16px; padding:20px;}
+.map-bowl{fill:var(--pitch-night-2); stroke:var(--steel-line); stroke-width:1;}
+.map-pitch-ring{fill:none; stroke:var(--steel-line); stroke-width:1; stroke-dasharray:4 4;}
+.map-pitch{fill:var(--turf); opacity:0.85;}
+.map-pitch-line{stroke:rgba(245,247,242,0.55); stroke-width:1.5;}
+.map-pitch-line-circle{fill:none; stroke:rgba(245,247,242,0.55); stroke-width:1.5;}
+.gate-marker{cursor:pointer;}
+.gate-marker circle{stroke:var(--pitch-night); stroke-width:2; transition:r .15s ease;}
+.gate-marker:hover circle{r:14;}
+.gate-marker text{fill:var(--pitch-night); font-family:var(--mono); font-size:10px; font-weight:700; text-anchor:middle; dominant-baseline:central; pointer-events:none;}
+.map-legend{display:flex; gap:18px; margin-top:14px; font-size:0.78rem; color:var(--floodlight); font-family:var(--mono);}
+.dot{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px;}
+.dot-low{background:var(--turf-bright);} .dot-mid{background:var(--amber);} .dot-high{background:var(--signal-red);}
+
+.gate-detail{background:var(--floodlight); border:1px solid rgba(16,24,21,0.1); border-radius:14px; padding:20px; min-height:120px; margin-bottom:20px;}
+.gate-detail .gate-title{font-family:var(--display); font-size:1.4rem; text-transform:uppercase; margin-bottom:6px;}
+.gate-detail .gate-meta{display:flex; gap:14px; font-family:var(--mono); font-size:0.78rem; color:var(--steel); margin-bottom:10px;}
+
+.ask-form label{font-family:var(--mono); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--steel);}
+.ask-row{display:flex; gap:10px; margin:8px 0 12px;}
+.ask-row input, .lingo-input-row input, .transit-form select, .lingo-input-row select{
+  flex:1; padding:12px 14px; border-radius:10px; border:1.5px solid rgba(16,24,21,0.15); font-family:var(--body); font-size:0.94rem; background:#fff; color:var(--ink);
+}
+.ask-chips{display:flex; gap:8px; flex-wrap:wrap;}
+.chip{background:transparent; border:1px solid rgba(16,24,21,0.22); border-radius:999px; padding:7px 13px; font-size:0.78rem; cursor:pointer; color:var(--ink); font-family:var(--body); transition:border-color .15s, color .15s, background .15s;}
+.chip:hover{border-color:var(--turf); color:var(--turf); background:rgba(31,111,74,0.06);}
+.ask-row input:focus, .lingo-input-row input:focus, .transit-form select:focus, .lingo-input-row select:focus, .ops-form textarea:focus, .assistant-input-row input:focus{
+  border-color:var(--turf-bright); box-shadow:0 0 0 3px rgba(46,158,104,0.18);
+}
+.ask-answer{margin-top:14px; padding:16px; border-radius:12px; background:rgba(31,111,74,0.08); font-size:0.94rem; display:none;}
+.ask-answer.show{display:block;}
+
+/* CROWD */
+.crowd-grid{display:grid; grid-template-columns:1.3fr 1fr; gap:36px; margin-top:36px;}
+@media (max-width:900px){.crowd-grid{grid-template-columns:1fr;}}
+.crowd-bars{display:flex; flex-direction:column; gap:14px;}
+.crowd-row{display:grid; grid-template-columns:90px 1fr 60px; align-items:center; gap:14px; font-family:var(--mono); font-size:0.82rem;}
+.crowd-track{height:16px; background:var(--steel-line); border-radius:6px; overflow:hidden;}
+.crowd-fill{height:100%; border-radius:6px; transition:width .8s ease, background .8s ease;}
+.ai-card{background:var(--pitch-night-2); border:1px solid var(--steel-line); border-radius:14px; padding:22px; margin-bottom:20px;}
+.ai-recommendation{font-size:1.02rem; line-height:1.55;}
+.section-dark .ai-recommendation{color:var(--floodlight);}
+.big-number{font-family:var(--display); font-size:2.2rem; color:var(--amber); margin:0 0 6px;}
+
+/* LINGO */
+.lingo-card{margin-top:32px; background:var(--floodlight); border:1px solid rgba(16,24,21,0.1); border-radius:16px; padding:26px;}
+.lingo-input-row{display:flex; gap:10px; flex-wrap:wrap;}
+.lingo-input-row input{min-width:280px;}
+.lingo-input-row select{flex:none; width:150px;}
+.lingo-output{margin-top:18px; padding:18px; border-radius:12px; background:rgba(31,111,74,0.08); min-height:40px; font-size:1.05rem;}
+.lingo-output .lang-tag{font-family:var(--mono); font-size:0.72rem; text-transform:uppercase; color:var(--turf); letter-spacing:0.08em; display:block; margin-bottom:6px;}
+
+/* ACCESS + TRANSIT */
+.access-grid{display:grid; grid-template-columns:1fr 1fr; gap:52px; margin-top:20px;}
+@media (max-width:900px){.access-grid{grid-template-columns:1fr;}}
+.access-options{display:flex; flex-direction:column; gap:10px; margin:18px 0;}
+.access-options label{display:flex; align-items:center; gap:10px; font-size:0.95rem;}
+.transit-form{display:flex; gap:10px; margin:18px 0;}
+.transit-form select{flex:1;}
+.co2-track{margin-top:22px;}
+.co2-bar{height:10px; background:var(--steel-line); border-radius:6px; overflow:hidden; margin-bottom:8px;}
+.co2-fill{height:100%; width:0%; background:var(--turf-bright); border-radius:6px; transition:width 1s ease;}
+
+/* OPS */
+.ops-grid{display:grid; grid-template-columns:0.9fr 1.1fr; gap:36px; margin-top:36px;}
+@media (max-width:900px){.ops-grid{grid-template-columns:1fr;}}
+.ops-form{background:var(--floodlight); border:1px solid rgba(16,24,21,0.1); border-radius:14px; padding:22px; display:flex; flex-direction:column; gap:12px; height:fit-content;}
+.ops-form label{font-family:var(--mono); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--steel);}
+.ops-form textarea{padding:12px 14px; border-radius:10px; border:1.5px solid rgba(16,24,21,0.15); font-family:var(--body); font-size:0.94rem; resize:vertical;}
+.ops-log{background:var(--pitch-night); color:var(--floodlight); border-radius:14px; padding:22px; max-height:420px; overflow-y:auto;}
+.ops-entry{border-left:3px solid var(--turf-bright); padding:10px 14px; margin-bottom:12px; background:rgba(255,255,255,0.03); border-radius:0 8px 8px 0;}
+.ops-entry.sev-high{border-color:var(--signal-red);}
+.ops-entry.sev-medium{border-color:var(--amber);}
+.ops-entry .sev-tag{font-family:var(--mono); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px; display:block;}
+.sev-high .sev-tag{color:#ff8b7f;}
+.sev-medium .sev-tag{color:var(--amber);}
+.sev-low .sev-tag{color:var(--turf-bright);}
+.ops-entry p{margin:0 0 6px; font-size:0.9rem;}
+.ops-entry .ops-meta{font-family:var(--mono); font-size:0.7rem; color:var(--steel);}
+
+/* MATCH CENTER */
+.match-grid{display:grid; grid-template-columns:1fr 1.15fr; gap:36px; margin-top:36px; align-items:start;}
+@media (max-width:900px){.match-grid{grid-template-columns:1fr;}}
+.match-final-teaser{
+  background:linear-gradient(160deg, var(--pitch-night), var(--pitch-night-2));
+  color:var(--floodlight); border-radius:16px; padding:26px; border:1px solid rgba(245,247,242,0.08);
+  box-shadow:0 24px 44px -28px rgba(0,0,0,0.55);
+}
+.match-final-teams{display:flex; align-items:center; gap:14px; margin:10px 0 6px; flex-wrap:wrap;}
+.match-final-team{font-family:var(--display); font-size:1.5rem; text-transform:uppercase; letter-spacing:0.01em;}
+.match-final-vs{font-family:var(--mono); font-size:0.78rem; color:var(--sky-bright); letter-spacing:0.08em;}
+.countdown{display:flex; gap:14px; margin-top:20px; padding-top:18px; border-top:1px solid var(--steel-line);}
+.countdown div{display:flex; flex-direction:column; align-items:center; min-width:52px;}
+.countdown strong{font-family:var(--display); font-size:1.7rem; color:var(--sky-bright);}
+.countdown span{font-family:var(--mono); font-size:0.66rem; text-transform:uppercase; letter-spacing:0.08em; color:rgba(245,247,242,0.55);}
+
+.match-list{display:flex; flex-direction:column; gap:10px;}
+.match-row{
+  display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:14px;
+  background:#fff; border:1px solid rgba(16,24,21,0.1); border-radius:12px; padding:14px 16px;
+}
+.match-row .match-round{font-family:var(--mono); font-size:0.68rem; color:var(--steel); text-transform:uppercase; letter-spacing:0.06em; grid-column:1/-1; margin-bottom:2px;}
+.match-teams{display:flex; align-items:center; gap:10px; font-weight:700; font-size:0.98rem;}
+.match-teams .t-vs{color:var(--steel); font-weight:500; font-size:0.82rem;}
+.match-score{font-family:var(--mono); font-weight:700; font-size:1.05rem; letter-spacing:0.02em;}
+.match-status{font-family:var(--mono); font-size:0.66rem; text-transform:uppercase; letter-spacing:0.07em; padding:4px 9px; border-radius:999px; white-space:nowrap;}
+.status-ft{background:rgba(74,90,84,0.14); color:var(--steel);}
+.status-live{background:rgba(232,72,58,0.14); color:var(--signal-red);}
+.status-live::before{content:'';display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--signal-red); margin-right:5px; animation:pulse 1.4s infinite;}
+.status-upcoming{background:rgba(46,142,224,0.12); color:var(--sky);}
+.match-meta{font-family:var(--mono); font-size:0.72rem; color:var(--steel); grid-column:1/-1; margin-top:4px;}
+.match-disclaimer{margin-top:22px; font-size:0.8rem;}
+
+/* TICKETING */
+.ticket-grid{display:grid; grid-template-columns:0.9fr 1.1fr; gap:36px; margin-top:36px; align-items:start;}
+@media (max-width:900px){.ticket-grid{grid-template-columns:1fr;}}
+.ticket-form{
+  background:var(--floodlight); border:1px solid rgba(16,24,21,0.1); border-radius:14px; padding:22px;
+  display:flex; flex-direction:column; gap:10px; box-shadow:0 18px 36px -26px rgba(16,24,21,0.25);
+}
+.ticket-form label{font-family:var(--mono); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--steel); margin-top:6px;}
+.ticket-form select{padding:12px 14px; border-radius:10px; border:1.5px solid rgba(16,24,21,0.15); font-family:var(--body); font-size:0.94rem; background:#fff; color:var(--ink);}
+.ticket-form button{margin-top:12px;}
+.ticket-result{
+  background:linear-gradient(180deg, rgba(216,166,61,0.08), rgba(216,166,61,0.02)), var(--pitch-night);
+  color:var(--floodlight); border-radius:14px; padding:24px; min-height:180px;
+  border:1px solid rgba(216,166,61,0.25); box-shadow:0 24px 44px -28px rgba(0,0,0,0.5);
+}
+.ticket-price{font-family:var(--display); font-size:2.4rem; color:var(--gold); margin:8px 0 4px;}
+.ticket-meta{display:flex; gap:18px; flex-wrap:wrap; margin-top:14px; font-family:var(--mono); font-size:0.78rem; color:rgba(245,247,242,0.7);}
+.ticket-meta strong{color:var(--floodlight); display:block; font-family:var(--body); font-size:0.95rem;}
+.ticket-availability{margin-top:16px;}
+.ticket-availability .avail-bar{height:8px; border-radius:6px; background:var(--steel-line); overflow:hidden;}
+.ticket-availability .avail-fill{height:100%; background:var(--gold); border-radius:6px; transition:width .8s ease;}
+
+/* FOOTER */
+.site-footer{background:var(--pitch-night); color:var(--floodlight); padding:48px 0 30px;}
+.footer-inner{display:flex; justify-content:space-between; gap:30px; flex-wrap:wrap;}
+.footer-inner .brand-mark{margin-bottom:10px;}
+.footer-inner .muted{max-width:380px; color:rgba(245,247,242,0.55);}
+.footer-links{display:flex; flex-direction:column; gap:10px; font-size:0.85rem; font-family:var(--mono);}
+.footer-links button{color:rgba(245,247,242,0.6); text-decoration:none; transition:color .15s ease;}
+.footer-links button:hover{color:var(--turf-bright);}
+
+/* ===== ASSISTANT ===== */
+.assistant-launcher{
+  position:fixed; right:24px; bottom:24px; z-index:100; background:var(--turf); color:var(--floodlight);
+  padding:14px 22px; border-radius:999px; font-weight:700; cursor:pointer; box-shadow:0 14px 30px -10px rgba(31,111,74,0.6);
+  display:flex; align-items:center; gap:8px; font-size:0.92rem; transition:transform .15s ease;
+}
+.assistant-launcher:hover{transform:translateY(-2px);}
+.assistant-launcher::before{content:''; width:8px; height:8px; border-radius:50%; background:var(--amber);}
+
+.assistant-panel{
+  position:fixed; right:24px; bottom:24px; z-index:101; width:380px; max-width:calc(100vw - 32px);
+  height:520px; max-height:calc(100vh - 48px); background:var(--floodlight); border-radius:18px; box-shadow:0 30px 60px -20px rgba(11,31,23,0.5);
+  display:none; flex-direction:column; overflow:hidden; border:1px solid rgba(16,24,21,0.1);
+}
+.assistant-panel.open{display:flex;}
+.assistant-head{background:var(--pitch-night); color:var(--floodlight); padding:16px 18px; display:flex; justify-content:space-between; align-items:flex-start;}
+.assistant-status{display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:0.7rem; color:rgba(245,247,242,0.6); margin-top:4px;}
+.pulse{width:7px; height:7px; border-radius:50%; background:var(--turf-bright); animation:pulse 1.6s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+.assistant-close{background:none; border:none; color:var(--floodlight); font-size:1.4rem; cursor:pointer; line-height:1;}
+.assistant-persona{display:flex; gap:8px; padding:12px 16px; border-bottom:1px solid rgba(16,24,21,0.08);}
+.persona-btn{flex:1; padding:7px; border-radius:999px; border:1px solid rgba(16,24,21,0.15); background:transparent; font-size:0.76rem; font-weight:700; cursor:pointer; font-family:var(--body);}
+.persona-btn.active{background:var(--turf); color:var(--floodlight); border-color:var(--turf);}
+.assistant-messages{flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px;}
+.msg{max-width:85%; padding:11px 14px; border-radius:14px; font-size:0.9rem; line-height:1.45;}
+.msg-bot{background:rgba(31,111,74,0.1); align-self:flex-start; border-bottom-left-radius:4px;}
+.msg-user{background:var(--pitch-night); color:var(--floodlight); align-self:flex-end; border-bottom-right-radius:4px;}
+.assistant-input-row{display:flex; gap:8px; padding:14px; border-top:1px solid rgba(16,24,21,0.08);}
+.assistant-input-row input{flex:1; padding:10px 12px; border-radius:10px; border:1.5px solid rgba(16,24,21,0.15); font-family:var(--body);}
+
+@media (max-width:500px){
+  .assistant-panel{width:calc(100vw - 24px); right:12px; bottom:12px;}
+  .assistant-launcher{right:12px; bottom:12px;}
 }
 
-/* ---------- DATA ---------- */
-const VENUES = [
-  {name:"MetLife Stadium", status:"clear", load:34},
-  {name:"AT&T Stadium", status:"moderate", load:61},
-  {name:"Estadio Azteca", status:"congested", load:88},
-  {name:"BC Place", status:"clear", load:22},
-  {name:"Hard Rock Stadium", status:"moderate", load:55},
-];
+/* ===================================================
+   VISUAL UPGRADE LAYER — splash, logo, ambience, motion
+   =================================================== */
 
-const GATES = [
-  {id:"A", label:"Gate A", angle:-100},
-  {id:"B", label:"Gate B", angle:-55},
-  {id:"C", label:"Gate C", angle:-15},
-  {id:"D", label:"Gate D", angle:20},
-  {id:"E", label:"Gate E", angle:55},
-  {id:"F", label:"Gate F", angle:100},
-  {id:"G", label:"Gate G", angle:140},
-  {id:"H", label:"Gate H", angle:180},
-  {id:"J", label:"Gate J", angle:220},
-  {id:"K", label:"Gate K", angle:260},
-];
+/* ---------- Background ambience ---------- */
+.bg-ambient{
+  position:fixed; inset:0; z-index:-2; pointer-events:none;
+  background:
+    radial-gradient(650px 460px at 88% -6%, rgba(46,158,104,0.16), transparent 60%),
+    radial-gradient(520px 480px at -8% 38%, rgba(255,182,39,0.09), transparent 60%),
+    radial-gradient(600px 500px at 60% 115%, rgba(31,111,74,0.10), transparent 60%);
+}
+.bg-ambient::after{
+  content:''; position:absolute; inset:0; opacity:0.035; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.section-dark{position:relative;}
+.section-dark::before{
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:
+    radial-gradient(500px 340px at 12% 0%, rgba(46,158,104,0.14), transparent 65%),
+    radial-gradient(420px 340px at 100% 100%, rgba(255,182,39,0.08), transparent 60%);
+}
+.section-dark .wrap{position:relative; z-index:1;}
 
-const AMENITIES = {
-  A:"West concourse, restrooms + accessible seating lift",
-  B:"Premium entrance, guest services desk",
-  C:"Main plaza entrance, largest queue capacity",
-  D:"Family zone — nursing room + stroller check",
-  E:"Media & broadcast entrance",
-  F:"East concourse, food hall access",
-  G:"Away supporters section entrance",
-  H:"North plaza, first aid station",
-  J:"Volunteer & staff entrance",
-  K:"Accessible drop-off entrance",
-};
+/* ---------- Hero floodlight sweep ---------- */
+.hero{position:relative; overflow:hidden;}
+.hero::before{
+  content:''; position:absolute; top:-40%; right:-20%; width:900px; height:900px;
+  background:conic-gradient(from 0deg, transparent 0deg, rgba(46,158,104,0.10) 40deg, transparent 90deg, transparent 360deg);
+  animation:sweep 14s linear infinite; pointer-events:none; z-index:0;
+}
+.hero-grid{position:relative; z-index:1;}
 
-let gateState = {}; // populated below
+@keyframes sweep{to{transform:rotate(360deg);}}
 
-function randomStatus(){
-  const r = Math.random();
-  if(r < 0.45) return {status:"low", pct: 15 + Math.random()*25};
-  if(r < 0.8) return {status:"mid", pct: 45 + Math.random()*25};
-  return {status:"high", pct: 75 + Math.random()*20};
+/* ---------- Logo mark (header + footer) ---------- */
+.brand-mark{width:36px; height:36px; flex-shrink:0;}
+.brand-mark rect:first-child{fill:var(--pitch-night);}
+.brand-mark .brand-ring{fill:none; stroke:var(--turf-bright); stroke-width:6;}
+.brand-mark .brand-bar{fill:var(--floodlight);}
+.brand-ball circle{fill:var(--floodlight); stroke:var(--pitch-night); stroke-width:1.6;}
+.brand-ball .brand-ball-panel{fill:var(--pitch-night);}
+.brand-ball{animation:ballSpin 5.5s linear infinite; transform-box:fill-box; transform-origin:center;}
+.brand:hover .brand-ball, .footer-brand:hover .brand-ball{animation-duration:1.1s;}
+.footer-brand{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+
+@keyframes pulseGlow{
+  0%,100%{filter:drop-shadow(0 0 1px rgba(255,182,39,0.4));}
+  50%{filter:drop-shadow(0 0 6px rgba(255,182,39,0.85));}
+}
+@keyframes ballSpin{to{transform:rotate(360deg);}}
+
+/* ---------- Splash / animated logo intro ---------- */
+body.pre-splash{overflow:hidden; height:100vh;}
+#splash{
+  position:fixed; inset:0; z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  background:radial-gradient(circle at 50% 38%, #14392A 0%, #0B1F17 62%, #05100B 100%);
+  transition:opacity .55s ease, transform .55s ease;
+}
+#splash.hide{opacity:0; transform:scale(1.06); pointer-events:none;}
+.splash-logo{width:132px; height:132px;}
+.splash-ring{fill:none; stroke:rgba(245,247,242,0.15); stroke-width:2;}
+.splash-arc{
+  fill:none; stroke:var(--turf-bright); stroke-width:3; stroke-linecap:round;
+  stroke-dasharray:75 100; stroke-dashoffset:75;
+  animation:drawArc 1.1s cubic-bezier(.4,0,.2,1) forwards .15s;
+  filter:drop-shadow(0 0 6px rgba(46,158,104,0.6));
+}
+@keyframes drawArc{to{stroke-dashoffset:0;}}
+.splash-gate rect{fill:var(--floodlight); transform-box:fill-box; transform-origin:center; transform:scaleY(0); opacity:0; animation:gatePop .45s ease forwards;}
+.splash-gate rect:nth-child(1){animation-delay:1.05s;}
+.splash-gate rect:nth-child(2){animation-delay:1.2s;}
+@keyframes gatePop{to{transform:scaleY(1); opacity:1;}}
+.splash-ball{opacity:0; transform-box:fill-box; transform-origin:center; animation:pulsePop .4s ease forwards 1.45s, ballSpin 2.6s linear infinite 1.85s;}
+.splash-ball circle{fill:var(--floodlight); stroke:#0B1F17; stroke-width:1.2;}
+.splash-ball-panel{fill:#0B1F17;}
+@keyframes pulsePop{to{opacity:1;}}
+.splash-word{
+  margin:22px 0 0; font-family:var(--display); color:var(--floodlight); font-size:1.7rem; letter-spacing:0.05em;
+  text-transform:uppercase; opacity:0; transform:translateY(10px); animation:wordIn .5s ease forwards 1.6s;
+}
+.splash-word em{font-style:normal; color:var(--turf-bright);}
+.splash-tag{
+  font-family:var(--mono); color:rgba(245,247,242,0.5); font-size:0.72rem; letter-spacing:0.16em; text-transform:uppercase;
+  margin-top:8px; opacity:0; transform:translateY(10px); animation:wordIn .5s ease forwards 1.85s;
+}
+@keyframes wordIn{to{opacity:1; transform:translateY(0);}}
+.splash-skip{
+  position:absolute; bottom:28px; font-family:var(--mono); font-size:0.68rem; color:rgba(245,247,242,0.45);
+  letter-spacing:0.1em; text-transform:uppercase; background:none; border:1px solid rgba(245,247,242,0.2);
+  padding:8px 16px; border-radius:999px; cursor:pointer; opacity:0; animation:wordIn .5s ease forwards 2.15s;
+  transition:border-color .15s ease, color .15s ease;
+}
+.splash-skip:hover{border-color:var(--turf-bright); color:var(--floodlight);}
+
+/* ---------- Scroll reveal ---------- */
+.reveal{opacity:0; transform:translateY(26px); transition:opacity .7s ease, transform .7s ease;}
+.reveal.in-view{opacity:1; transform:translateY(0);}
+
+/* ---------- Card / button polish ---------- */
+.btn-primary{
+  background:linear-gradient(135deg, var(--turf), var(--turf-bright));
+  box-shadow:0 12px 26px -12px rgba(31,111,74,0.6);
+}
+.btn-primary:hover{box-shadow:0 16px 32px -10px rgba(46,158,104,0.7);}
+.btn-ghost{box-shadow:0 8px 18px -10px rgba(11,31,23,0.35);}
+
+.hero-panel{
+  background:linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0)) , var(--pitch-night);
+  border:1px solid rgba(245,247,242,0.08);
+}
+.ai-card{
+  background:linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.01)), var(--pitch-night-2);
+  border:1px solid rgba(255,255,255,0.08);
+  box-shadow:0 24px 44px -28px rgba(0,0,0,0.65);
+}
+.map-card{
+  background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0)), var(--pitch-night);
+  border:1px solid rgba(245,247,242,0.08);
+}
+.gate-detail{box-shadow:0 18px 36px -26px rgba(16,24,21,0.35);}
+.lingo-card{box-shadow:0 18px 36px -26px rgba(16,24,21,0.25);}
+.ops-form{box-shadow:0 18px 36px -26px rgba(16,24,21,0.25);}
+.ops-log{border:1px solid rgba(245,247,242,0.08); box-shadow:0 24px 44px -28px rgba(0,0,0,0.55);}
+
+.ai-card, .map-card, .gate-detail, .lingo-card, .ops-form, .hero-panel, .match-final-teaser, .ticket-form, .ticket-result{
+  transition:transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+}
+.ai-card:hover, .map-card:hover, .match-final-teaser:hover, .ticket-result:hover{transform:translateY(-3px); border-color:rgba(245,247,242,0.16);}
+.gate-detail:hover, .lingo-card:hover, .ops-form:hover, .ticket-form:hover{transform:translateY(-3px); border-color:rgba(31,111,74,0.35);}
+.crowd-row, .ops-entry, .match-row{transition:transform .15s ease;}
+.ops-entry:hover{transform:translateX(2px);}
+.match-row:hover{transform:translateY(-2px); box-shadow:0 14px 26px -18px rgba(16,24,21,0.25);}
+
+@media (prefers-reduced-motion: reduce){
+  .hero::before{animation:none; display:none;}
+  .splash-arc,.splash-gate rect,.splash-pulse,.splash-word,.splash-tag,.splash-skip{animation:none !important; opacity:1 !important; transform:none !important; stroke-dashoffset:0 !important;}
+  .reveal{opacity:1; transform:none; transition:none;}
 }
 
-function initGateState(){
-  GATES.forEach(g=>{
-    gateState[g.id] = randomStatus();
-  });
+/* ---------- Narrow-screen refinements ---------- */
+@media (max-width:600px){
+  .wrap{padding:0 18px;}
+  .section{padding:56px 0;}
+  .header-inner{padding:0 18px;}
+  .hero{padding:36px 0 28px;}
+  .hero-stats{gap:22px;}
+  .scoreboard-row{grid-template-columns:1.3fr 0.9fr 0.6fr; font-size:0.74rem; gap:6px;}
+  .crowd-row{grid-template-columns:64px 1fr 44px; gap:8px; font-size:0.74rem;}
+  .lingo-input-row select{width:100%;}
+  .lingo-input-row input{min-width:0; width:100%;}
+  .assistant-panel{height:calc(100vh - 90px);}
 }
-initGateState();
-
-/* ---------- TICKER ---------- */
-function buildTicker(){
-  const items = [
-    "Spain 2–0 France — Spain advance to the Final at MetLife Stadium",
-    "Semifinal live now: England vs. Argentina, Atlanta Stadium",
-    "GATE C queue at 88% — GATEWAY suggesting Gate F reroute",
-    "Weather: 31°C, high UV — hydration stations flagged at Gates B, F, K",
-    "Shuttle line 4 arriving every 6 min from Downtown Transit Hub",
-    "Multilingual desk active: EN · ES · FR · PT · AR · JA · DE",
-    "Accessible seating lift operational at Gates A and K",
-    "Final tickets: dynamic pricing trending up as inventory tightens",
-  ];
-  const full = items.concat(items).map(i=>`◆ ${i}`).join("&nbsp;&nbsp;&nbsp;&nbsp;");
-  document.getElementById("tickerTrack").innerHTML = full + "&nbsp;&nbsp;&nbsp;&nbsp;" + full;
-}
-buildTicker();
-
-/* ---------- HERO SCOREBOARD ---------- */
-function statusClass(s){
-  return s === "clear" ? "status-clear" : s === "moderate" ? "status-moderate" : "status-congested";
-}
-function renderScoreboard(){
-  const body = document.getElementById("scoreboardBody");
-  body.innerHTML = VENUES.map(v=>`
-    <div class="scoreboard-row">
-      <span>${v.name}</span>
-      <span class="status-pill ${statusClass(v.status)}">${v.status}</span>
-      <span class="load-bar"><span class="load-fill" style="width:${v.load}%"></span></span>
-    </div>`).join("");
-}
-renderScoreboard();
-liveInterval(()=>{
-  VENUES.forEach(v=>{
-    v.load = Math.max(10, Math.min(96, v.load + (Math.random()*14-7)));
-    v.status = v.load < 45 ? "clear" : v.load < 75 ? "moderate" : "congested";
-  });
-  renderScoreboard();
-}, 4000);
-
-/* ---------- STADIUM MAP ---------- */
-function statusColor(status){
-  return status === "low" ? "#2E9E68" : status === "mid" ? "#FFB627" : "#E8483A";
-}
-function renderGates(){
-  const layer = document.getElementById("gatesLayer");
-  layer.innerHTML = GATES.map(g=>{
-    const rad = g.angle * Math.PI/180;
-    const rx = 245, ry = 165;
-    const x = 300 + rx*Math.cos(rad);
-    const y = 230 + ry*Math.sin(rad);
-    const st = gateState[g.id];
-    const ping = st.status === "high" ? `<circle r="12" fill="none" stroke="${statusColor(st.status)}" stroke-width="2" opacity="0.6">
-        <animate attributeName="r" values="12;28" dur="1.6s" repeatCount="indefinite"/>
-        <animate attributeName="opacity" values="0.55;0" dur="1.6s" repeatCount="indefinite"/>
-      </circle>` : "";
-    return `<g class="gate-marker" data-gate="${g.id}" transform="translate(${x},${y})">
-      ${ping}
-      <circle r="12" fill="${statusColor(st.status)}"/>
-      <text x="0" y="1">${g.id}</text>
-    </g>`;
-  }).join("");
-  layer.querySelectorAll(".gate-marker").forEach(el=>{
-    el.addEventListener("click", ()=> showGateDetail(el.dataset.gate));
-  });
-}
-renderGates();
-
-function showGateDetail(id){
-  const g = GATES.find(x=>x.id===id);
-  const st = gateState[id];
-  const queue = Math.round(st.pct/5);
-  const label = st.status === "low" ? "Clear" : st.status === "mid" ? "Moderate" : "Congested";
-  let advice;
-  if(st.status === "high"){
-    const alt = GATES.filter(x=> gateState[x.id].status === "low")[0];
-    advice = `GATEWAY recommends redirecting to ${alt ? alt.label : "the next available gate"} — estimated ${queue} min faster right now.`;
-  } else if(st.status === "mid"){
-    advice = `Moving at a normal pace. Expect roughly ${queue} minutes at security.`;
-  } else {
-    advice = `Fastest gate on the concourse right now — no rerouting needed.`;
-  }
-  document.getElementById("gateDetail").innerHTML = `
-    <p class="eyebrow">${label} · Live briefing</p>
-    <p class="gate-title">${g.label}</p>
-    <div class="gate-meta">
-      <span>QUEUE ≈ ${queue} min</span>
-      <span>LOAD ${Math.round(st.pct)}%</span>
-    </div>
-    <p class="muted">${AMENITIES[id]}</p>
-    <p>${advice}</p>
-  `;
-}
-showGateDetail("C");
-
-liveInterval(()=>{
-  const ids = Object.keys(gateState);
-  const id = ids[Math.floor(Math.random()*ids.length)];
-  gateState[id] = randomStatus();
-  renderGates();
-}, 3500);
-
-/* ---------- WAYFINDING ASK ---------- */
-// Sends the question + live occupancy context to the real Claude API via
-// /api/assistant. Falls back to the local rule-based engine in logic.js
-// if the backend isn't reachable (e.g. static-only hosting).
-async function answerWayfinding(q){
-  const context = `Live gate occupancy snapshot: ${Object.entries(gateState).map(([id,s])=>`${id}:${s.status}`).join(", ")}. Fan question: ${q}`;
-  try {
-    const data = await callGatewayAI("/api/assistant", { message: context, persona: "fan" });
-    if (data && data.reply) return data.reply;
-    throw new Error("empty reply");
-  } catch (err) {
-    return window.GatewayLogic.answerWayfinding(q, gateState);
-  }
-}
-
-document.getElementById("wayfindForm").addEventListener("submit", async e=>{
-  e.preventDefault();
-  const input = document.getElementById("wayfindInput");
-  const q = input.value.trim();
-  if(!q) return;
-  const out = document.getElementById("wayfindAnswer");
-  out.classList.add("show");
-  out.textContent = "GATEWAY is checking live concourse data…";
-  out.textContent = await answerWayfinding(q);
-});
-document.querySelectorAll(".chip").forEach(chip=>{
-  chip.addEventListener("click", ()=>{
-    document.getElementById("wayfindInput").value = chip.dataset.q;
-    document.getElementById("wayfindForm").dispatchEvent(new Event("submit"));
-  });
-});
-
-/* ---------- CROWD INTELLIGENCE ---------- */
-const CROWD_GATES = ["Gate A","Gate B","Gate C","Gate D","Gate F","Gate H"];
-let crowdData = CROWD_GATES.map(()=> 20 + Math.random()*70);
-
-function renderCrowd(){
-  const el = document.getElementById("crowdBars");
-  el.innerHTML = CROWD_GATES.map((name,i)=>{
-    const v = crowdData[i];
-    const color = v < 45 ? "#2E9E68" : v < 75 ? "#FFB627" : "#E8483A";
-    return `<div class="crowd-row">
-      <span>${name}</span>
-      <span class="crowd-track"><span class="crowd-fill" style="width:${v}%;background:${color}"></span></span>
-      <span>${Math.round(v)}%</span>
-    </div>`;
-  }).join("");
-}
-renderCrowd();
-
-function generateCrowdRecommendation(){
-  const max = crowdData.indexOf(Math.max(...crowdData));
-  const min = crowdData.indexOf(Math.min(...crowdData));
-  const busiest = CROWD_GATES[max];
-  const quietest = CROWD_GATES[min];
-  const pct = Math.round(crowdData[max]);
-  const templates = [
-    `${busiest} is running at ${pct}% capacity and trending upward. Suggest opening two additional lanes and pushing a push-notification nudge toward ${quietest}, currently the least congested entrance.`,
-    `Arrival rate at ${busiest} has outpaced security throughput for the last 10 minutes. GATEWAY recommends a temporary signage redirect toward ${quietest} plus a staff radio call to concourse supervisors.`,
-    `Forecast models put ${busiest} at critical density within the next 15–20 minutes if current trend holds. Draft alert ready to send to volunteers: "Direct arriving fans toward ${quietest} — shortest wait on site."`,
-  ];
-  return templates[Math.floor(Math.random()*templates.length)];
-}
-
-function refreshCrowd(){
-  crowdData = crowdData.map(v=> Math.max(8, Math.min(97, v + (Math.random()*24-11))));
-  renderCrowd();
-  const rec = document.getElementById("crowdRecommendation");
-  rec.textContent = "Drafting recommendation…";
-  setTimeout(()=>{ rec.textContent = generateCrowdRecommendation(); }, 500);
-  const eta = document.getElementById("peakEta");
-  eta.textContent = `T‑${Math.floor(10+Math.random()*40)} min`;
-}
-refreshCrowd();
-document.getElementById("regenRecBtn").addEventListener("click", refreshCrowd);
-liveInterval(refreshCrowd, 8000);
-
-/* ---------- MULTILINGUAL ---------- */
-// Sends text to the real Claude API for translation via /api/translate.
-// Falls back to logic.js's small phrase bank if the backend is unreachable.
-async function translate(text, lang){
-  try {
-    const data = await callGatewayAI("/api/translate", { text, lang });
-    if (data && data.translated) return data.translated;
-    throw new Error("empty translation");
-  } catch (err) {
-    return window.GatewayLogic.translate(text, lang);
-  }
-}
-document.getElementById("lingoBtn").addEventListener("click", async ()=>{
-  const text = document.getElementById("lingoInput").value.trim() || "Please have your ticket and ID ready at this gate.";
-  const lang = document.getElementById("lingoLang").value;
-  const langName = window.GatewayLogic.LANG_NAMES[lang];
-  const out = document.getElementById("lingoOutput");
-  out.innerHTML = `<span class="lang-tag">${window.GatewayLogic.escapeHtml(langName)} · generating…</span>`;
-  const result = await translate(text, lang);
-  out.innerHTML = `<span class="lang-tag">${window.GatewayLogic.escapeHtml(langName)}</span>${window.GatewayLogic.escapeHtml(result)}`;
-});
-
-/* ---------- ACCESSIBILITY ---------- */
-document.getElementById("accessBtn").addEventListener("click", ()=>{
-  const checked = Array.from(document.querySelectorAll("#accessOptions input:checked")).map(c=>c.value);
-  const out = document.getElementById("accessOutput");
-  if(checked.length===0){
-    out.textContent = "Select at least one need and GATEWAY will build a route around it.";
-    return;
-  }
-  out.textContent = "Building route…";
-  const notes = {
-    wheelchair:"routes you via the Gate A and Gate K ramps (no stairs), with the lift confirmed operational",
-    sensory:"avoids the main plaza during entry peaks and routes through the quieter North concourse",
-    stroller:"keeps you on level concourse paths and flags the stroller-check point near Gate D",
-    hearing:"places you in hearing-loop-equipped seating blocks and notes the nearest interpreter station",
-  };
-  setTimeout(()=>{
-    const parts = checked.map(c=>notes[c]);
-    out.textContent = `Route ready: GATEWAY ${parts.join("; also ")}. Estimated concourse time: ${6+checked.length*2} minutes.`;
-  }, 600);
-});
-
-/* ---------- TRANSPORT + SUSTAINABILITY ---------- */
-const TRANSIT_OPTIONS = {
-  downtown:{mode:"Light rail — Green Line", time:"22 min", co2:"2.1 kg CO₂ saved vs. driving"},
-  airport:{mode:"Express shuttle + rail transfer", time:"48 min", co2:"6.4 kg CO₂ saved vs. rideshare"},
-  suburb:{mode:"Park & ride shuttle", time:"35 min", co2:"3.8 kg CO₂ saved vs. driving direct"},
-  hotel:{mode:"Walk + tram (12 min walk)", time:"19 min", co2:"1.6 kg CO₂ saved vs. taxi"},
-};
-let co2Total = 41.2;
-document.getElementById("transitBtn").addEventListener("click", ()=>{
-  const from = document.getElementById("transitFrom").value;
-  const opt = TRANSIT_OPTIONS[from];
-  const out = document.getElementById("transitOutput");
-  out.textContent = "Checking live transit load…";
-  setTimeout(()=>{
-    out.textContent = `Best option: ${opt.mode}, about ${opt.time} to the gate. Current occupancy is manageable — no transfer delays reported. ${opt.co2}.`;
-    co2Total += parseFloat(opt.co2);
-    updateCo2();
-  }, 550);
-});
-function updateCo2(){
-  const pct = Math.min(100, co2Total/1.2);
-  document.getElementById("co2Fill").style.width = pct+"%";
-  document.getElementById("co2Label").textContent = `Tournament-wide CO₂ avoided by transit-first routing today: ${co2Total.toFixed(1)} kg and climbing.`;
-}
-updateCo2();
-
-/* ---------- OPS CONSOLE ---------- */
-// Sends the free-text report to the real Claude API via /api/triage, which
-// returns {severity, team, dispatch}. Falls back to logic.js's rule-based
-// classifier if the backend is unreachable.
-async function classifyIncident(text){
-  try {
-    const data = await callGatewayAI("/api/triage", { text });
-    if (data && data.severity && data.team && data.dispatch) return data;
-    throw new Error("malformed triage response");
-  } catch (err) {
-    return window.GatewayLogic.classifyIncident(text);
-  }
-}
-
-// SECURITY: user-submitted report text is escaped before being placed in
-// innerHTML. Without this, a report like "<img src=x onerror=alert(1)>"
-// would execute as script in every operator's browser (stored XSS).
-function addOpsEntry(text, result){
-  const wrap = document.getElementById("opsEntries");
-  const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-  const entry = document.createElement("div");
-  entry.className = `ops-entry sev-${result.severity}`;
-  const esc = window.GatewayLogic.escapeHtml;
-  entry.innerHTML = `
-    <span class="sev-tag">${esc(result.severity)} priority · ${esc(result.team)}</span>
-    <p>${esc(text)}</p>
-    <p class="ops-meta">${esc(time)} — ${esc(result.dispatch)}</p>
-  `;
-  wrap.prepend(entry);
-}
-
-document.getElementById("opsForm").addEventListener("submit", async e=>{
-  e.preventDefault();
-  const input = document.getElementById("opsInput");
-  const text = input.value.trim();
-  if(!text) return;
-  input.value = "";
-  const result = await classifyIncident(text);
-  addOpsEntry(text, result);
-});
-// seed a couple of example entries
-(async ()=>{
-  addOpsEntry("Two food stalls closed near Gate F, queue backing into the concourse", await classifyIncident("Two food stalls closed near Gate F, queue backing into the concourse"));
-  addOpsEntry("Fan reporting dizziness near Section 108, requesting medical", await classifyIncident("Fan reporting dizziness near Section 108, requesting medical"));
-})();
-
-/* ---------- FLOATING ASSISTANT ---------- */
-const assistantPanel = document.getElementById("assistantPanel");
-const assistantMessages = document.getElementById("assistantMessages");
-let currentPersona = "fan";
-
-function openAssistant(){
-  assistantPanel.classList.add("open");
-  if(assistantMessages.children.length === 0){
-    pushMessage("bot", greetingFor(currentPersona));
-  }
-}
-document.getElementById("assistantLauncher").addEventListener("click", openAssistant);
-document.getElementById("heroTryBtn").addEventListener("click", openAssistant);
-document.getElementById("assistantToggleBtn").addEventListener("click", openAssistant);
-document.getElementById("assistantClose").addEventListener("click", ()=> assistantPanel.classList.remove("open"));
-
-document.querySelectorAll(".persona-btn").forEach(btn=>{
-  btn.addEventListener("click", ()=>{
-    document.querySelectorAll(".persona-btn").forEach(b=>b.classList.remove("active"));
-    btn.classList.add("active");
-    currentPersona = btn.dataset.persona;
-    pushMessage("bot", greetingFor(currentPersona));
-  });
-});
-
-function greetingFor(persona){
-  if(persona==="volunteer") return "Switched to Volunteer mode. Ask me about assignments, incident routing, or gate status — I'll answer with operational detail.";
-  if(persona==="organizer") return "Organizer mode active. Ask about venue-wide load, staffing gaps, or forecasted pinch points.";
-  return "Hi, I'm the GATEWAY assistant for this venue. Ask me anything about gates, seating, transit, or accessibility.";
-}
-
-function pushMessage(who, text){
-  const div = document.createElement("div");
-  div.className = `msg msg-${who}`;
-  div.textContent = text;
-  assistantMessages.appendChild(div);
-  assistantMessages.scrollTop = assistantMessages.scrollHeight;
-}
-
-// Sends the message + persona to the real Claude API via /api/assistant
-// (system prompt = persona instructions, server-side). Falls back to the
-// local rule-based engine below if the backend is unreachable.
-async function assistantReply(q, persona){
-  try {
-    const data = await callGatewayAI("/api/assistant", { message: q, persona });
-    if (data && data.reply) return data.reply;
-    throw new Error("empty reply");
-  } catch (err) {
-    return assistantReplyFallback(q, persona);
-  }
-}
-
-function assistantReplyFallback(q, persona){
-  const t = q.toLowerCase();
-  if(persona === "volunteer"){
-    if(t.match(/incident|report|dispatch/)) return "Log it through the Ops Console below and I'll classify severity automatically — high priority items page Security or Medical directly.";
-    if(t.match(/gate|busy|congest/)) return `Gate C is currently the busiest on this venue's map. Recommend directing arriving volunteers to reinforce that lane for the next 20 minutes.`;
-    if(t.match(/break|shift/)) return "Your next scheduled break rotation is in 45 minutes — Facilities will cover your post at Gate D.";
-    return "As a volunteer, I can help with incident routing, gate staffing status, and shift logistics — try asking about a specific gate.";
-  }
-  if(persona === "organizer"){
-    if(t.match(/load|capacity|venue/)) return "Venue-wide concourse load is at 58% and trending up 3%/10min. Two venues in the network are at 'moderate', one at 'congested' — see the live scoreboard above.";
-    if(t.match(/staff|volunteer/)) return "Staffing is at 92% of planned coverage. The gap is concentrated at Gate H — recommend a 15-minute radio call for reinforcement.";
-    if(t.match(/forecast|predict/)) return "Forecast shows a secondary arrival wave 40 minutes before kickoff, driven by two shuttle lines arriving simultaneously. Recommend opening Gate G early.";
-    return "As an organizer, ask me about venue-wide load, staffing gaps, or arrival forecasts — I read across every gate in real time.";
-  }
-  // fan
-  if(t.match(/restroom|bathroom|toilet/)) return window.GatewayLogic.answerWayfinding("restroom");
-  if(t.match(/first aid|medical|hurt/)) return window.GatewayLogic.answerWayfinding("first aid");
-  if(t.match(/food|eat|drink|hungry/)) return window.GatewayLogic.answerWayfinding("food");
-  if(t.match(/quiet|less busy|shortest/)) return window.GatewayLogic.answerWayfinding("quietest gate right now", gateState);
-  if(t.match(/parking|car/)) return window.GatewayLogic.answerWayfinding("parking");
-  if(t.match(/language|translat/)) return "I can respond in Spanish, French, Portuguese, Arabic, Japanese, and German — try the Lingo section below, or just ask me in your language.";
-  if(t.match(/accessib|wheelchair|stroller/)) return "Head to the Access & Transit section below — tell me your needs and I'll build a step-free route with the nearest supported gate.";
-  if(t.match(/score|match|semi|final|argentina|england|spain|france/)) return "Spain beat France 2-0 and are through to Sunday's Final at MetLife Stadium. England and Argentina are live now in Atlanta for the second semifinal spot — check the Match Center below for the live score.";
-  if(t.match(/ticket|price|buy/)) return "Ticket prices move with demand. Head to the Ticketing section below, pick your match and tier, and I'll pull the current live price and remaining inventory.";
-  if(t.match(/hi|hello|hey/)) return greetingFor("fan");
-  return "Here's what I found: check the live gate map above for real-time queue status, or ask me something specific — restrooms, food, transit, or accessibility.";
-}
-
-document.getElementById("assistantForm").addEventListener("submit", async e=>{
-  e.preventDefault();
-  const input = document.getElementById("assistantInput");
-  const q = input.value.trim();
-  if(!q) return;
-  pushMessage("user", q);
-  input.value = "";
-  const typing = document.createElement("div");
-  typing.className = "msg msg-bot";
-  typing.textContent = "…";
-  assistantMessages.appendChild(typing);
-  assistantMessages.scrollTop = assistantMessages.scrollHeight;
-  const reply = await assistantReply(q, currentPersona);
-  typing.remove();
-  pushMessage("bot", reply);
-});
-
-/* ---------- MATCH CENTER ---------- */
-// Knockout-stage results reflect the real FIFA World Cup 2026 schedule.
-// The England–Argentina semifinal is presented as a live, ticking simulation
-// standing in for a real-time scores feed (e.g. a sports-data API call).
-const MATCHES = [
-  {round:"Semifinal · Dallas Stadium · Jul 14", home:"France", away:"Spain", homeScore:0, awayScore:2, status:"ft"},
-  {round:"Semifinal · Atlanta Stadium · Jul 15–16", home:"England", away:"Argentina", homeScore:0, awayScore:0, status:"live", minute:41},
-  {round:"Bronze Final · Miami Stadium · Jul 18, 9:00 PM ET", home:"France", away:"Runner-up ENG/ARG", status:"upcoming"},
-  {round:"Final · MetLife Stadium · Jul 19, 3:00 PM ET", home:"Spain", away:"Winner ENG/ARG", status:"upcoming"},
-];
-
-function renderMatchList(){
-  const el = document.getElementById("matchList");
-  if(!el) return;
-  el.innerHTML = MATCHES.map(m=>{
-    let scoreHtml, statusHtml;
-    if(m.status === "ft"){
-      scoreHtml = `<span class="match-score">${m.homeScore} – ${m.awayScore}</span>`;
-      statusHtml = `<span class="match-status status-ft">Full time</span>`;
-    } else if(m.status === "live"){
-      scoreHtml = `<span class="match-score">${m.homeScore} – ${m.awayScore}</span>`;
-      statusHtml = `<span class="match-status status-live">Live · ${m.minute}'</span>`;
-    } else {
-      scoreHtml = `<span class="match-score muted">—</span>`;
-      statusHtml = `<span class="match-status status-upcoming">Upcoming</span>`;
-    }
-    return `<div class="match-row">
-      <span class="match-round">${m.round}</span>
-      <span class="match-teams">${m.home} <span class="t-vs">vs</span> ${m.away}</span>
-      ${scoreHtml}
-      ${statusHtml}
-    </div>`;
-  }).join("");
-}
-renderMatchList();
-
-// Simulate the live semifinal ticking forward — standing in for a live
-// sports-data feed polling every few seconds.
-liveInterval(()=>{
-  const live = MATCHES.find(m=> m.status === "live");
-  if(!live) return;
-  if(live.minute < 90){
-    live.minute += 1;
-    if(Math.random() < 0.05){
-      if(Math.random() < 0.5) live.homeScore += 1; else live.awayScore += 1;
-    }
-  }
-  renderMatchList();
-}, 5000);
-
-/* ---------- FINAL COUNTDOWN ---------- */
-function updateCountdown(){
-  const target = new Date("2026-07-19T19:00:00Z").getTime(); // 3:00 PM ET
-  const now = Date.now();
-  const diff = Math.max(0, target - now);
-  const days = Math.floor(diff / 86400000);
-  const hours = Math.floor((diff % 86400000) / 3600000);
-  const mins = Math.floor((diff % 3600000) / 60000);
-  const secs = Math.floor((diff % 60000) / 1000);
-  const set = (id, val)=>{ const n = document.getElementById(id); if(n) n.textContent = String(val).padStart(2,"0"); };
-  set("cdDays", days); set("cdHours", hours); set("cdMins", mins); set("cdSecs", secs);
-}
-updateCountdown();
-setInterval(updateCountdown, 1000);
-
-/* ---------- TICKETING ---------- */
-// Simulated dynamic-pricing feed — in production this maps to FIFA's live
-// ticketing/inventory API rather than a client-side random walk.
-const TICKET_BASE = {
-  bronze:{category3:145, category2:260, category1:420, hospitality:1350},
-  final:{category3:950, category2:1850, category1:3400, hospitality:6730},
-};
-const TICKET_LABELS = {
-  bronze:"Bronze Final — France vs. Runner-up · Miami",
-  final:"Final — Spain vs. Winner ENG/ARG · New York/New Jersey",
-};
-const TIER_LABELS = {
-  category3:"Category 3 — upper level", category2:"Category 2 — lower level",
-  category1:"Category 1 — sideline", hospitality:"Hospitality suite",
-};
-
-document.getElementById("ticketForm").addEventListener("submit", e=>{
-  e.preventDefault();
-  const match = document.getElementById("ticketMatch").value;
-  const tier = document.getElementById("ticketTier").value;
-  const out = document.getElementById("ticketResult");
-  out.innerHTML = `<p class="eyebrow eyebrow-gold">Live quote</p><p class="muted">Checking current demand…</p>`;
-  setTimeout(()=>{
-    const base = TICKET_BASE[match][tier];
-    const surge = 0.9 + Math.random()*0.35;
-    const price = Math.round(base * surge);
-    const remaining = Math.round(4 + Math.random()*88);
-    const trend = surge > 1.1 ? "rising fast" : surge > 1.0 ? "trending up" : "holding steady";
-    out.innerHTML = `
-      <p class="eyebrow eyebrow-gold">Live quote · updates continuously</p>
-      <p class="muted">${TICKET_LABELS[match]}</p>
-      <p class="ticket-price">$${price.toLocaleString()}</p>
-      <p class="muted">${TIER_LABELS[tier]} — price is ${trend} with demand.</p>
-      <div class="ticket-availability">
-        <div class="avail-bar"><div class="avail-fill" style="width:${100-remaining}%"></div></div>
-      </div>
-      <div class="ticket-meta">
-        <span><strong>${remaining}%</strong>inventory remaining</span>
-        <span><strong>Dynamic</strong>FIFA pricing model</span>
-        <span><strong>Official</strong>channel only</span>
-      </div>
-    `;
-  }, 500);
-});
-
-/* ---------- SPLASH INTRO (3s animated logo) ---------- */
-(function(){
-  const splash = document.getElementById("splash");
-  const skipBtn = document.getElementById("splashSkip");
-  let dismissed = false;
-  function dismiss(){
-    if(dismissed) return;
-    dismissed = true;
-    splash.classList.add("hide");
-    document.body.classList.remove("pre-splash");
-    setTimeout(()=>{ splash.style.display = "none"; }, 600);
-  }
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const autoDelay = reduceMotion ? 300 : 3000;
-  setTimeout(dismiss, autoDelay);
-  skipBtn.addEventListener("click", dismiss);
-  splash.addEventListener("click", (e)=>{ if(e.target === splash) dismiss(); });
-})();
-
-/* ---------- SECTION QUICK-JUMP SCROLLSPY ---------- */
-(function(){
-  const dots = document.querySelectorAll("#sectionDots button");
-  if(!dots.length || !("IntersectionObserver" in window)) return;
-  const targets = Array.from(dots).map(d=> document.getElementById(d.dataset.target)).filter(Boolean);
-  const io = new IntersectionObserver((entries)=>{
-    entries.forEach(entry=>{
-      const dot = document.querySelector(`#sectionDots button[data-target="${entry.target.id}"]`);
-      if(!dot) return;
-      if(entry.isIntersecting) dot.classList.add("active");
-      else dot.classList.remove("active");
-    });
-  }, {rootMargin:"-45% 0px -45% 0px", threshold:0});
-  targets.forEach(t=> io.observe(t));
-})();
-
-/* ---------- IN-PAGE SECTION NAVIGATION ---------- */
-// Handles all [data-scroll] buttons (nav, hero CTA, footer, dot-nav) with a
-// JS scroll. Plain <a href="#..."> links are avoided here because some
-// embedded/sandboxed preview contexts intercept anchor clicks and treat
-// them as external-navigation attempts before this script can run.
-document.addEventListener("click", (e)=>{
-  const trigger = e.target.closest("[data-scroll]");
-  if(!trigger) return;
-  const id = trigger.dataset.scroll;
-  const target = id === "top" ? document.body : document.getElementById(id);
-  if(!target) return;
-  target.scrollIntoView({behavior:"smooth", block:"start"});
-});
-
-/* ---------- MOBILE NAV ---------- */
-(function(){
-  const toggle = document.getElementById("navToggle");
-  const nav = document.getElementById("mainNav");
-  if(!toggle || !nav) return;
-  function closeNav(){
-    nav.classList.remove("open");
-    toggle.setAttribute("aria-expanded", "false");
-  }
-  toggle.addEventListener("click", ()=>{
-    const isOpen = nav.classList.toggle("open");
-    toggle.setAttribute("aria-expanded", String(isOpen));
-  });
-  nav.querySelectorAll("button").forEach(b=> b.addEventListener("click", closeNav));
-  document.addEventListener("keydown", e=>{ if(e.key === "Escape") closeNav(); });
-})();
-
-/* ---------- SCROLL REVEAL ---------- */
-(function(){
-  const items = document.querySelectorAll(".reveal");
-  if(!("IntersectionObserver" in window)){
-    items.forEach(el=> el.classList.add("in-view"));
-    return;
-  }
-  const io = new IntersectionObserver((entries)=>{
-    entries.forEach(entry=>{
-      if(entry.isIntersecting){
-        entry.target.classList.add("in-view");
-        io.unobserve(entry.target);
-      }
-    });
-  }, {threshold:0.15, rootMargin:"0px 0px -60px 0px"});
-  items.forEach(el=> io.observe(el));
-})();
