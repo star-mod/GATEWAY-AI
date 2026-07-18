@@ -7,13 +7,13 @@
    ========================================================= */
 
 /* ---------- GENAI BACKEND ---------- */
-// Real Claude API calls go through server/server.js so the API key never
+// Real Claude API calls go through server.js so the API key never
 // ships to the browser. If no backend is configured (e.g. this page is
 // hosted as static-only), every AI feature below falls back to the
 // rule-based simulation in logic.js so the demo still works end to end.
 const API_BASE = window.GATEWAY_API_BASE || ""; // e.g. "https://your-backend.onrender.com"
 
-async function callGatewayAI(path, body, timeoutMs = 6000) {
+async function callGatewayAI(path, body, timeoutMs = 20000){
   if (!API_BASE) throw new Error("no backend configured");
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
@@ -397,10 +397,22 @@ document.getElementById("heroTryBtn").addEventListener("click", openAssistant);
 document.getElementById("assistantToggleBtn").addEventListener("click", openAssistant);
 document.getElementById("assistantClose").addEventListener("click", ()=> assistantPanel.classList.remove("open"));
 
+// ACCESSIBILITY: close the panel on Escape, matching standard dialog
+// keyboard behavior for keyboard-only users.
+document.addEventListener("keydown", e=>{
+  if(e.key === "Escape" && assistantPanel.classList.contains("open")){
+    assistantPanel.classList.remove("open");
+  }
+});
+
 document.querySelectorAll(".persona-btn").forEach(btn=>{
   btn.addEventListener("click", ()=>{
-    document.querySelectorAll(".persona-btn").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll(".persona-btn").forEach(b=>{
+      b.classList.remove("active");
+      b.setAttribute("aria-pressed", "false");
+    });
     btn.classList.add("active");
+    btn.setAttribute("aria-pressed", "true");
     currentPersona = btn.dataset.persona;
     pushMessage("bot", greetingFor(currentPersona));
   });
