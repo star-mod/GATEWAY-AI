@@ -109,4 +109,12 @@ app.post("/api/translate", async (req, res) => {
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`[GATEWAY] backend proxy listening on :${PORT}`));
+
+// Only bind to a port when this file is run directly (e.g. `node server.js`
+// or Render's `npm start`). When it's require()'d by a test runner instead
+// (see server.test.js), we skip listening and just export the app so
+// supertest can drive requests against it in-process.
+if (require.main === module) {
+  app.listen(PORT, () => console.log(`[GATEWAY] backend proxy listening on :${PORT}`));
+}
+module.exports = { app };
