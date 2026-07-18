@@ -201,7 +201,7 @@
               <button type="button" class="chip" data-q="where is the nearest first aid station">Nearest first aid</button>
             </div>
           </form>
-          <div class="ask-answer" id="wayfindAnswer"></div>
+          <div class="ask-answer" id="wayfindAnswer" aria-live="polite"></div>
         </div>
       </div>
     </div>
@@ -221,7 +221,7 @@
         <div class="crowd-ai">
           <div class="ai-card">
             <p class="eyebrow eyebrow-light">AI Recommendation</p>
-            <p id="crowdRecommendation" class="ai-recommendation">Reading live turnstile data…</p>
+            <p id="crowdRecommendation" class="ai-recommendation" aria-live="polite">Reading live turnstile data…</p>
             <button class="btn btn-outline btn-sm" id="regenRecBtn">Regenerate forecast</button>
           </div>
           <div class="ai-card ai-card-quiet">
@@ -246,7 +246,7 @@
       <div class="lingo-card reveal">
         <div class="lingo-input-row">
           <input type="text" id="lingoInput" value="Please have your ticket and ID ready at this gate." placeholder="Type an announcement...">
-          <select id="lingoLang">
+          <select id="lingoLang" aria-label="Target language">
             <option value="es">Español</option>
             <option value="fr">Français</option>
             <option value="pt">Português</option>
@@ -256,7 +256,7 @@
           </select>
           <button class="btn btn-primary btn-sm" id="lingoBtn">Translate</button>
         </div>
-        <div class="lingo-output" id="lingoOutput">
+        <div class="lingo-output" id="lingoOutput" aria-live="polite">
           <p class="muted">Translation will appear here.</p>
         </div>
       </div>
@@ -277,7 +277,7 @@
           <label><input type="checkbox" value="hearing"> Hearing loop seating</label>
         </div>
         <button class="btn btn-outline btn-sm" id="accessBtn">Build my route</button>
-        <div class="ai-recommendation" id="accessOutput" style="margin-top:16px;"></div>
+        <div class="ai-recommendation" id="accessOutput" aria-live="polite" style="margin-top:16px;"></div>
       </div>
 
       <div class="reveal">
@@ -285,7 +285,7 @@
         <h2>The greenest way in, calculated live.</h2>
         <p class="section-sub section-sub-light">Tell GATEWAY where you're starting from — it weighs transit load, walk time, and emissions to suggest the best way to the gate.</p>
         <div class="transit-form">
-          <select id="transitFrom">
+          <select id="transitFrom" aria-label="Starting point">
             <option value="downtown">Downtown transit hub</option>
             <option value="airport">Airport</option>
             <option value="suburb">Suburban park &amp; ride</option>
@@ -293,7 +293,7 @@
           </select>
           <button class="btn btn-outline btn-sm" id="transitBtn">Get my route</button>
         </div>
-        <div class="ai-recommendation" id="transitOutput"></div>
+        <div class="ai-recommendation" id="transitOutput" aria-live="polite"></div>
         <div class="co2-track">
           <div class="co2-bar"><div class="co2-fill" id="co2Fill"></div></div>
           <p class="muted" id="co2Label">Tournament-wide CO₂ avoided by transit-first routing: calculating…</p>
@@ -328,7 +328,7 @@
           <button type="submit" class="btn btn-primary btn-sm">Check live price</button>
         </form>
 
-        <div class="ticket-result" id="ticketResult">
+        <div class="ticket-result" id="ticketResult" aria-live="polite">
           <p class="eyebrow eyebrow-gold">Live quote</p>
           <p class="muted">Choose a match and tier — GATEWAY pulls the current dynamic price and remaining inventory.</p>
         </div>
@@ -399,11 +399,11 @@
     <button class="assistant-close" id="assistantClose" aria-label="Close">&times;</button>
   </div>
   <div class="assistant-persona">
-    <button class="persona-btn active" data-persona="fan">Fan</button>
-    <button class="persona-btn" data-persona="volunteer">Volunteer</button>
-    <button class="persona-btn" data-persona="organizer">Organizer</button>
+    <button class="persona-btn active" data-persona="fan" aria-pressed="true">Fan</button>
+    <button class="persona-btn" data-persona="volunteer" aria-pressed="false">Volunteer</button>
+    <button class="persona-btn" data-persona="organizer" aria-pressed="false">Organizer</button>
   </div>
-  <div class="assistant-messages" id="assistantMessages"></div>
+  <div class="assistant-messages" id="assistantMessages" aria-live="polite"></div>
   <form class="assistant-input-row" id="assistantForm">
     <input type="text" id="assistantInput" placeholder="Ask about gates, seats, transit, safety…" autocomplete="off">
     <button type="submit" class="btn btn-primary btn-sm">Send</button>
